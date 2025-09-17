@@ -7,11 +7,10 @@
         "arguments": {
           "name": "girigiri愛動漫",
           "description": "",
-          "iconUrl": "https://anime.girigirilove.com/upload/site/20231121-1/fdd2694db66628a9deadd86e50aedd43.png",
+          "iconUrl": "https://ani.girigirilove.com/guanggao/fdd2694db66628a9deadd86e50aedd43.png",
           "searchConfig": {
-            "searchUrl": "https://anime.girigirilove.com/search/-------------/?wd={keyword}",
+            "searchUrl": "https://ani.girigirilove.com/search/-------------/?wd={keyword}",
             "searchUseOnlyFirstWord": true,
-            "preferShortest": true,
             "searchRemoveSpecial": true,
             "searchUseSubjectNamesCount": 1,
             "rawBaseUrl": "",
@@ -22,8 +21,8 @@
               "preferShorterName": true
             },
             "selectorSubjectFormatIndexed": {
-              "selectNames": "body > .box-width .search-box .thumb-content > .thumb-txt",
-              "selectLinks": "body > .box-width .search-box .thumb-menu > a",
+              "selectNames": "body > div.box-width > div > div >div > div:nth-child(2) h3 ",
+              "selectLinks": "body > div.box-width > div > div >div > div:nth-child(2) > a",
               "preferShorterName": true
             },
             "selectorSubjectFormatJsonPathIndexed": {
@@ -46,6 +45,8 @@
               "matchEpisodeSortFromName": "(第\\s*(?<ep>.+)\\s*[话集])|1080P"
             },
             "defaultResolution": "1080P",
+            "defaultSubtitleLanguage": "CHS",
+            "onlySupportsPlayers": [],
             "filterByEpisodeSort": true,
             "filterBySubjectName": true,
             "selectMedia": {
