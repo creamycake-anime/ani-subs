@@ -7,9 +7,9 @@
         "arguments": {
           "name": "girigiri愛動漫",
           "description": "",
-          "iconUrl": "https://ani.girigirilove.com/guanggao/fdd2694db66628a9deadd86e50aedd43.png",
+          "iconUrl": "https://bgm.girigirilove.com/guanggao/fdd2694db66628a9deadd86e50aedd43.png",
           "searchConfig": {
-            "searchUrl": "https://ani.girigirilove.com/search/-------------/?wd={keyword}",
+            "searchUrl": "https://bgm.girigirilove.com/search/-------------/?wd={keyword}",
             "searchUseOnlyFirstWord": true,
             "searchRemoveSpecial": true,
             "searchUseSubjectNamesCount": 1,
