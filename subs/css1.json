@@ -21,8 +21,8 @@
               "preferShorterName": true
             },
             "selectorSubjectFormatIndexed": {
-              "selectNames": "div.row-9 div.public-list-box div.right div.thumb-txt",
-              "selectLinks": "div.row-9 div.public-list-box div.right a.cr3",
+              "selectNames": "div > div.detail-info.rel.flex-auto.lightSpeedIn > a > h3",
+              "selectLinks": "div > div.detail-info.rel.flex-auto.lightSpeedIn > a",
               "preferShorterName": true
             },
             "selectorSubjectFormatJsonPathIndexed": {
