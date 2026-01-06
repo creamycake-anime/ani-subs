@@ -1500,7 +1500,7 @@
               "preferShorterName": true
             },
             "selectorSubjectFormatIndexed": {
-              "selectNames": ".video.anim",
+              "selectNames": ".video-by",
               "selectLinks": ".video-wrapper",
               "preferShorterName": true
             },
@@ -1509,17 +1509,17 @@
               "selectNames": "$[*]['title','name']",
               "preferShorterName": true
             },
-            "channelFormatId": "no-channel",
+            "channelFormatId": "index-grouped",
             "selectorChannelFormatFlattened": {
-              "selectChannelNames": ".anthology-tab > .swiper-wrapper a",
+              "selectChannelNames": ".chat-stream-bfq",
               "matchChannelName": "^(?<ch>.+?)(\\d+)?$",
-              "selectEpisodeLists": ".anthology-list-box",
-              "selectEpisodesFromList": "a",
+              "selectEpisodeLists": ".message-container.vod-play-list-container",
+              "selectEpisodesFromList": ".e00369g3d6a a",
               "selectEpisodeLinksFromList": "",
               "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
             },
             "selectorChannelFormatNoChannel": {
-              "selectEpisodes": "\t.message-container.vod-play-list-container .e00369g3d6a a",
+              "selectEpisodes": "#glist-1 > div.module-blocklist.scroll-box.scroll-box-y > div > a",
               "selectEpisodeLinks": "",
               "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
             },
