@@ -229,7 +229,7 @@
             "matchVideo": {
               "enableNestedUrl": true,
               "matchNestedUrl": "^.+(m3u8|vip|xigua\\.php).+\\?",
-              "matchVideoUrl": "(^http(s)?:\\/\\/(?!.*http(s)?:\\/\\/).+((\\.mp4)|(\\.mkv)|(m3u8)).*(\\?.+)?)|(akamaized)|(bilivideo.com)",
+              "matchVideoUrl": "(^http(s)?:\\/\\/(?!.*http(s)?:\\/\\/)(?!.*(?:vip\\.dytt-hot\\.com|vip\\.ffzy-play3\\.com|vip\\.dytt-cine\\.com)).+((\\.mp4)|(\\.mkv)|(m3u8)).*(\\?.+)?)|(akamaized)|(bilivideo.com)",
               "cookies": "quality=1080",
               "addHeadersToVideo": {
                 "referer": "",
@@ -238,7 +238,7 @@
             }
           }
         },
-        "tier": 3
+        "tier": 2
       },
       {
         "factoryId": "web-selector",
@@ -258,7 +258,7 @@
             "channelFormatId": "index-grouped",
             "selectorChannelFormatFlattened": {
               "selectChannelNames": "div>div>div>div>div>div.module-tab-items-box>.module-tab-item>span",
-              "matchChannelName": "",
+              "matchChannelName": "(?!高清线路3)",
               "selectEpisodeLists": ".module-play-list-content",
               "selectEpisodesFromList": "a",
               "selectEpisodeLinksFromList": "",
@@ -282,7 +282,7 @@
             }
           }
         },
-        "tier": 3
+        "tier": 1
       },
       {
         "factoryId": "web-selector",
@@ -635,51 +635,7 @@
             }
           }
         },
-        "tier": 4
-      },
-      {
-        "factoryId": "web-selector",
-        "version": 2,
-        "arguments": {
-          "name": "风铃动漫[新]",
-          "description": "直连，来自风铃动漫，导航：https://www.bbfun.cc/",
-          "iconUrl": "https://www.bbfun.cc/favicon.ico",
-          "searchConfig": {
-            "searchUrl": "https://www.bbfun.cc/feng-s.html?wd={keyword}&submit=",
-            "searchUseOnlyFirstWord": true,
-            "subjectFormatId": "a",
-            "selectorSubjectFormatA": {
-              "selectLists": ".hl-item-thumb",
-              "preferShorterName": true
-            },
-            "channelFormatId": "index-grouped",
-            "selectorChannelFormatFlattened": {
-              "selectChannelNames": ".hl-tabs-btn",
-              "matchChannelName": "^(?<ch>.+?)(\\d+)?$",
-              "selectEpisodeLists": ".hl-plays-list",
-              "selectEpisodesFromList": "a",
-              "selectEpisodeLinksFromList": "",
-              "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
-            },
-            "defaultResolution": "1080P",
-            "defaultSubtitleLanguage": "CHS",
-            "onlySupportsPlayers": [],
-            "selectMedia": {
-              "distinguishSubjectName": true,
-              "distinguishChannelName": true
-            },
-            "matchVideo": {
-              "enableNestedUrl": true,
-              "matchNestedUrl": "$^",
-              "matchVideoUrl": "(^http(s)?:\\/\\/(?!.*http).+\\.(mp4|m3u8|flv|mkv))|(url=(?<v>http(s)?:\\/\\/.+\\.(mp4|m3u8|flv|mkv)))|(^http(s)?:\\/\\/(?!.*http).+(sign\\.bytetos|sign\\.byteimg|mcloud\\.139|cloudflarestorage|tos-cn)\\.com(?!.*\\.ts).+(-expires|-signature))|((bilivideo|akamaized|szbdyd)\\.com(?!.*\\.ts))|(\\/video\\/tos\\/alisg\\/)|(\\/video\\/.*mime_type=video)",
-              "cookies": "quality=1080",
-              "addHeadersToVideo": {
-                "referer": ""
-              }
-            }
-          }
-        },
-        "tier": 4
+        "tier": 1
       },
       {
         "factoryId": "web-selector",
@@ -1142,7 +1098,7 @@
             "defaultResolution": "1080P"
           }
         },
-        "tier": 4
+        "tier": 2
       },
       {
         "factoryId": "web-selector",
@@ -1764,3 +1720,4 @@
     ]
   }
 }
+
