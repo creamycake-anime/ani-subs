@@ -43,7 +43,7 @@
             }
           }
         },
-        "tier": 1
+        "tier": 0
       },
       {
         "factoryId": "web-selector",
@@ -63,7 +63,7 @@
             "channelFormatId": "index-grouped",
             "selectorChannelFormatFlattened": {
               "selectChannelNames": ".hl-tabs-btn",
-              "matchChannelName": "^(?<ch>.+?)(\\d+)?$",
+              "matchChannelName": "^(?!I号线)(?<ch>.+?)(\\d+)?$",
               "selectEpisodeLists": ".hl-plays-list",
               "selectEpisodesFromList": "a",
               "selectEpisodeLinksFromList": "",
@@ -2020,4 +2020,3 @@
     ]
   }
 }
-
