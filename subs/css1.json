@@ -63,7 +63,7 @@
             "channelFormatId": "index-grouped",
             "selectorChannelFormatFlattened": {
               "selectChannelNames": ".hl-tabs-btn",
-              "matchChannelName": "^(?!I号线)(?<ch>.+?)(\\d+)?$",
+              "matchChannelName": "^(?!I号线$)(?<ch>.+?)(\\d+)?$",
               "selectEpisodeLists": ".hl-plays-list",
               "selectEpisodesFromList": "a",
               "selectEpisodeLinksFromList": "",
