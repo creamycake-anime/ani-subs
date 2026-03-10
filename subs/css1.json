@@ -41,9 +41,9 @@
                 "referer": ""
               }
             }
-          }
-        },
-        "tier": 0
+          },
+          "tier": 0
+        }
       },
       {
         "factoryId": "web-selector",
@@ -85,9 +85,9 @@
                 "referer": ""
               }
             }
-          }
-        },
-        "tier": 1
+          },
+          "tier": 1
+        }
       },
       {
         "factoryId": "web-selector",
@@ -129,9 +129,9 @@
                 "referer": ""
               }
             }
-          }
-        },
-        "tier": 2
+          },
+          "tier": 2
+        }
       },
       {
         "factoryId": "web-selector",
@@ -192,9 +192,9 @@
                 "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
               }
             }
-          }
-        },
-        "tier": 2
+          },
+          "tier": 2
+        }
       },
       {
         "factoryId": "web-selector",
@@ -253,9 +253,9 @@
               }
             },
             "defaultResolution": "1080P"
-          }
-        },
-        "tier": 2
+          },
+          "tier": 2
+        }
       },
       {
         "factoryId": "web-selector",
@@ -297,9 +297,9 @@
                 "referer": ""
               }
             }
-          }
-        },
-        "tier": 3
+          },
+          "tier": 3
+        }
       },
       {
         "factoryId": "web-selector",
@@ -341,9 +341,9 @@
                 "referer": ""
               }
             }
-          }
-        },
-        "tier": 3
+          },
+          "tier": 3
+        }
       },
       {
         "factoryId": "web-selector",
@@ -385,9 +385,9 @@
                 "referer": ""
               }
             }
-          }
-        },
-        "tier": 3
+          },
+          "tier": 3
+        }
       },
       {
         "factoryId": "web-selector",
@@ -429,9 +429,9 @@
                 "referer": ""
               }
             }
-          }
-        },
-        "tier": 3
+          },
+          "tier": 3
+        }
       },
       {
         "factoryId": "web-selector",
@@ -474,9 +474,9 @@
                 "referer": ""
               }
             }
-          }
-        },
-        "tier": 3
+          },
+          "tier": 3
+        }
       },
       {
         "factoryId": "web-selector",
@@ -518,9 +518,9 @@
                 "referer": ""
               }
             }
-          }
-        },
-        "tier": 4
+          },
+          "tier": 4
+        }
       },
       {
         "factoryId": "web-selector",
@@ -562,9 +562,9 @@
                 "referer": ""
               }
             }
-          }
-        },
-        "tier": 4
+          },
+          "tier": 4
+        }
       },
       {
         "factoryId": "web-selector",
@@ -606,9 +606,9 @@
                 "referer": ""
               }
             }
-          }
-        },
-        "tier": 4
+          },
+          "tier": 4
+        }
       },
       {
         "factoryId": "web-selector",
@@ -650,9 +650,9 @@
                 "referer": ""
               }
             }
-          }
-        },
-        "tier": 4
+          },
+          "tier": 4
+        }
       },
       {
         "factoryId": "web-selector",
@@ -694,9 +694,9 @@
                 "referer": ""
               }
             }
-          }
-        },
-        "tier": 4
+          },
+          "tier": 4
+        }
       },
       {
         "factoryId": "web-selector",
@@ -738,9 +738,9 @@
                 "referer": ""
               }
             }
-          }
-        },
-        "tier": 4
+          },
+          "tier": 4
+        }
       },
       {
         "factoryId": "web-selector",
@@ -782,9 +782,9 @@
                 "referer": ""
               }
             }
-          }
-        },
-        "tier": 4
+          },
+          "tier": 4
+        }
       },
       {
         "factoryId": "web-selector",
@@ -826,9 +826,9 @@
                 "referer": ""
               }
             }
-          }
-        },
-        "tier": 4
+          },
+          "tier": 4
+        }
       },
       {
         "factoryId": "web-selector",
@@ -870,9 +870,9 @@
                 "referer": ""
               }
             }
-          }
-        },
-        "tier": 4
+          },
+          "tier": 4
+        }
       },
       {
         "factoryId": "web-selector",
@@ -926,9 +926,9 @@
                 "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
               }
             }
-          }
-        },
-        "tier": 4
+          },
+          "tier": 4
+        }
       },
       {
         "factoryId": "web-selector",
@@ -982,9 +982,9 @@
                 "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
               }
             }
-          }
-        },
-        "tier": 4
+          },
+          "tier": 4
+        }
       },
       {
         "factoryId": "web-selector",
@@ -1110,9 +1110,9 @@
               }
             },
             "defaultResolution": "1080P"
-          }
-        },
-        "tier": 4
+          },
+          "tier": 4
+        }
       },
       {
         "factoryId": "web-selector",
@@ -1172,9 +1172,9 @@
               }
             },
             "defaultResolution": "1080P"
-          }
-        },
-        "tier": 4
+          },
+          "tier": 4
+        }
       },
       {
         "factoryId": "web-selector",
@@ -1293,9 +1293,9 @@
               }
             },
             "defaultResolution": "1080P"
-          }
-        },
-        "tier": 4
+          },
+          "tier": 4
+        }
       },
       {
         "factoryId": "web-selector",
@@ -1356,9 +1356,9 @@
                 "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
               }
             }
-          }
-        },
-        "tier": 4
+          },
+          "tier": 4
+        }
       },
       {
         "factoryId": "web-selector",
@@ -1419,9 +1419,9 @@
               }
             },
             "defaultResolution": "1080P"
-          }
-        },
-        "tier": 4
+          },
+          "tier": 4
+        }
       },
       {
         "factoryId": "web-selector",
@@ -1482,9 +1482,9 @@
               }
             },
             "defaultResolution": "720P"
-          }
-        },
-        "tier": 4
+          },
+          "tier": 4
+        }
       },
       {
         "factoryId": "web-selector",
@@ -1545,9 +1545,9 @@
               }
             },
             "defaultResolution": "1080P"
-          }
-        },
-        "tier": 4
+          },
+          "tier": 4
+        }
       },
       {
         "factoryId": "web-selector",
@@ -1839,9 +1839,9 @@
               }
             },
             "defaultResolution": "1080P"
-          }
-        },
-        "tier": 4
+          },
+          "tier": 4
+        }
       },
       {
         "factoryId": "web-selector",
@@ -1901,9 +1901,9 @@
               }
             },
             "defaultResolution": "1080P"
-          }
-        },
-        "tier": 4
+          },
+          "tier": 4
+        }
       },
       {
         "factoryId": "web-selector",
@@ -1964,9 +1964,9 @@
                 "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
               }
             }
-          }
-        },
-        "tier": 4
+          },
+          "tier": 4
+        }
       },
       {
         "factoryId": "web-selector",
@@ -2027,9 +2027,9 @@
                 "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
               }
             }
-          }
-        },
-        "tier": 4
+          },
+          "tier": 4
+        }
       }
     ]
   }
