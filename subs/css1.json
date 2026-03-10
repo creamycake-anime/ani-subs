@@ -988,23 +988,31 @@
       },
       {
         "factoryId": "web-selector",
-        "version": 1,
+        "version": 2,
         "arguments": {
           "name": "girigiri愛動漫",
           "description": "",
-          "iconUrl": "https://anime.girigirilove.icu/upload/site/20231121-1/fdd2694db66628a9deadd86e50aedd43.png",
+          "iconUrl": "https://picui.ogmua.cn/s1/2026/03/10/69afb489ae341.webp",
           "searchConfig": {
             "searchUrl": "https://anime.girigirilove.icu/search/-------------/?wd={keyword}",
             "searchUseOnlyFirstWord": true,
-            "preferShortest": true,
+            "searchRemoveSpecial": true,
+            "searchUseSubjectNamesCount": 1,
+            "rawBaseUrl": "",
+            "requestInterval": 3000,
             "subjectFormatId": "indexed",
             "selectorSubjectFormatA": {
               "selectLists": "div.video-info-header > a",
               "preferShorterName": true
             },
             "selectorSubjectFormatIndexed": {
-              "selectNames": "body > .box-width .search-box .thumb-content > .thumb-txt",
-              "selectLinks": "body > .box-width .search-box .thumb-menu > a",
+              "selectNames": "body > .box-width .vod-detail .detail-info .slide-info-title",
+              "selectLinks": "body > .box-width .vod-detail .detail-info > a",
+              "preferShorterName": true
+            },
+            "selectorSubjectFormatJsonPathIndexed": {
+              "selectLinks": "$[*]['url', 'link']",
+              "selectNames": "$[*]['title','name']",
               "preferShorterName": true
             },
             "channelFormatId": "index-grouped",
@@ -1021,8 +1029,15 @@
               "selectEpisodeLinks": "",
               "matchEpisodeSortFromName": "(第\\s*(?<ep>.+)\\s*[话集])|1080P"
             },
+            "defaultResolution": "1080P",
+            "defaultSubtitleLanguage": "CHS",
+            "onlySupportsPlayers": [],
             "filterByEpisodeSort": true,
             "filterBySubjectName": true,
+            "selectMedia": {
+              "distinguishSubjectName": true,
+              "distinguishChannelName": true
+            },
             "matchVideo": {
               "enableNestedUrl": true,
               "matchNestedUrl": "^.+(vip|index\\.php).+\\?",
@@ -1032,11 +1047,10 @@
                 "referer": "",
                 "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
               }
-            },
-            "defaultResolution": "1080P"
-          }
-        },
-        "tier": 4
+            }
+          },
+          "tier": 2
+        }
       },
       {
         "factoryId": "web-selector",
