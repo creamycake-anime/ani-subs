@@ -30,7 +30,6 @@ const targets = [
     outputFile: path.join(outputDir, "css1.json"),
     recursive: true,
     sortByTier: true,
-    defaultTier: 4,
     enforceTierDirs: true,
     order: [
       "omofun111.json",
@@ -111,12 +110,9 @@ function assertMediaSource(source, file) {
   }
 }
 
-function sourceTier(source, target, file) {
+function sourceTier(source, file) {
   const tier = source.arguments.tier;
 
-  if (tier === undefined && target.defaultTier !== undefined) {
-    return target.defaultTier;
-  }
   if (Number.isInteger(tier) && tier >= 0) {
     return tier;
   }
@@ -166,7 +162,7 @@ function buildTarget(target) {
       fileName: path.basename(file),
       relativePath: path.relative(target.inputDir, file),
       source,
-      tier: target.sortByTier ? sourceTier(source, target, file) : 0,
+      tier: target.sortByTier ? sourceTier(source, file) : 0,
     };
     assertTierDirectory(entry, target);
     return entry;

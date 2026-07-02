@@ -19,7 +19,7 @@ Web 数据源放在 `subs/web/t0/` 到 `subs/web/t4/`：
 
 - `t0` 优先级最高，`t4` 优先级最低。
 - 文件所在目录需要和 JSON 里的 `arguments.tier` 一致，例如 `arguments.tier` 为 `2` 的源放在 `subs/web/t2/`。
-- 没有 `arguments.tier` 的 Web 源按 T4 处理，文件放在 `subs/web/t4/`。
+- 每个 Web 源都必须设置 `arguments.tier`。
 
 BT 数据源放在 `subs/bt/`，例如 `subs/bt/AnimeGarden.json`。
 
