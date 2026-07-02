@@ -64,9 +64,9 @@ jobs:
             v1/css1.json
             v1/bt1.json
 
-      # Only upload on push to main
+      # Only upload on push to main in the upstream repository
       - name: Upload to R2
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && !github.event.repository.fork }}
         uses: ryand56/r2-upload-action@v1.3.2
         with:
           r2-secret-access-key: ${{ secrets.R2_ACCESS_SECRET_KEY }}
