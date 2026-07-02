@@ -1,0 +1,14 @@
+{
+  "factoryId": "rss",
+  "version": 1,
+  "arguments": {
+    "name": "AnimeGarden",
+    "description": "动画 BT 资源聚合站",
+    "iconUrl": "https://garden.breadio.wiki/favicon.ico",
+    "searchConfig": {
+      "searchUrl": "https://garden.breadio.wiki/feed.xml?filter=[{\"type\":\"动画\",\"search\":[\"{keyword}\"]}]",
+      "filterByEpisodeSort": true,
+      "filterBySubjectName": true
+    }
+  }
+}

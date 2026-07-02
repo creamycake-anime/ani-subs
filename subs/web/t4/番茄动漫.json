@@ -1,0 +1,63 @@
+{
+  "factoryId": "web-selector",
+  "version": 2,
+  "arguments": {
+    "name": "番茄动漫",
+    "description": "",
+    "iconUrl": "https://www.fqdm.cc/upload/mxprocms/20240530-1/3d17fab3cb763e6ad7031974bf87f322.jpg",
+    "searchConfig": {
+      "searchUrl": "https://www.fqdm.cc/index.php/vod/search.html?wd={keyword}",
+      "searchUseOnlyFirstWord": true,
+      "searchRemoveSpecial": true,
+      "rawBaseUrl": "",
+      "requestInterval": 3000,
+      "subjectFormatId": "a",
+      "selectorSubjectFormatA": {
+        "selectLists": "div.module-card-item-info > div.module-card-item-title > a",
+        "preferShorterName": true
+      },
+      "selectorSubjectFormatIndexed": {
+        "selectNames": ".search-box .thumb-content > .thumb-txt",
+        "selectLinks": ".search-box .thumb-menu > a",
+        "preferShorterName": true
+      },
+      "selectorSubjectFormatJsonPathIndexed": {
+        "selectLinks": "$[*]['url', 'link']",
+        "selectNames": "$[*]['title','name']",
+        "preferShorterName": true
+      },
+      "channelFormatId": "index-grouped",
+      "selectorChannelFormatFlattened": {
+        "selectChannelNames": "#y-playList > div > span",
+        "matchChannelName": "",
+        "selectEpisodeLists": "#panel1",
+        "selectEpisodesFromList": "a",
+        "selectEpisodeLinksFromList": "",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
+      },
+      "selectorChannelFormatNoChannel": {
+        "selectEpisodes": "#glist-1 > div.module-blocklist.scroll-box.scroll-box-y > div > a",
+        "selectEpisodeLinks": "",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
+      },
+      "defaultResolution": "720P",
+      "filterByEpisodeSort": true,
+      "filterBySubjectName": true,
+      "selectMedia": {
+        "distinguishSubjectName": true,
+        "distinguishChannelName": true
+      },
+      "matchVideo": {
+        "enableNestedUrl": true,
+        "matchNestedUrl": "^.+(m3u8|vip|xigua\\.php).+\\?",
+        "matchVideoUrl": "(^https?:\\/\\/(?:play\\.xluuss\\.com|hn\\.bfvvs\\.com|play\\.subokk\\.com).+((\\.mp4)|(\\.mkv)|(\\.m3u8$)).*(\\?.+)?)|(.+top/\\?url=(?<v>https?:\\/\\/(?:play\\.xluuss\\.com|hn\\.bfvvs\\.com|play\\.subokk\\.com).+))",
+        "cookies": "quality=1080",
+        "addHeadersToVideo": {
+          "referer": "",
+          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+        }
+      }
+    },
+    "tier": 4
+  }
+}

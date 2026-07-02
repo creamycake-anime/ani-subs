@@ -1,0 +1,53 @@
+{
+  "factoryId": "web-selector",
+  "version": 1,
+  "arguments": {
+    "name": "MX动漫",
+    "description": "",
+    "iconUrl": "https://www.mxdm.xyz/favicon.ico",
+    "searchConfig": {
+      "searchUrl": "https://www.mxdm.xyz/search/-------------.html?wd={keyword}",
+      "requestInterval": 5000,
+      "searchUseOnlyFirstWord": true,
+      "preferShortest": true,
+      "subjectFormatId": "a",
+      "selectorSubjectFormatA": {
+        "selectLists": "div.video-info-header > a",
+        "preferShorterName": true
+      },
+      "selectorSubjectFormatIndexed": {
+        "selectNames": ".search-box .thumb-content > .thumb-txt",
+        "selectLinks": ".search-box .thumb-menu > a",
+        "preferShorterName": true
+      },
+      "channelFormatId": "index-grouped",
+      "selectorChannelFormatFlattened": {
+        "selectChannelNames": ".module-tab-item",
+        "matchChannelName": "(?<ch>.+?)(\\d+?)",
+        "selectEpisodeLists": ".module-list > .module-blocklist",
+        "selectEpisodesFromList": "a",
+        "selectEpisodeLinksFromList": "",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
+      },
+      "selectorChannelFormatNoChannel": {
+        "selectEpisodes": "#glist-1 > div.module-blocklist.scroll-box.scroll-box-y > div > a",
+        "selectEpisodeLinks": "",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
+      },
+      "filterByEpisodeSort": true,
+      "filterBySubjectName": true,
+      "matchVideo": {
+        "enableNestedUrl": true,
+        "matchNestedUrl": "^.+/m3u8",
+        "matchVideoUrl": "(^http(s)?:\\/\\/(?!.*http(s)?:\\/\\/).+((\\.mp4)|(\\.mkv)|(m3u8)).*(\\?.+)?)|(akamaized)|(bilivideo.com)",
+        "cookies": "quality=1080P",
+        "addHeadersToVideo": {
+          "referer": "",
+          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+        }
+      },
+      "defaultResolution": "1080P"
+    },
+    "tier": 4
+  }
+}

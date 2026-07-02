@@ -1,0 +1,44 @@
+{
+  "factoryId": "web-selector",
+  "version": 2,
+  "arguments": {
+    "name": "次元方舟",
+    "description": "直连，来自次元方舟，导航：https://www.cyfz.vip/",
+    "iconUrl": "https://cdn-y.tencentmusic.com/musician/commonPic/cos_8ea4f0680719892017ebae4d411f84c9.png",
+    "searchConfig": {
+      "searchUrl": "http://www.cyfz.vip/search.html?wd={keyword}",
+      "searchUseOnlyFirstWord": true,
+      "subjectFormatId": "a",
+      "selectorSubjectFormatA": {
+        "selectLists": ".thumb-txt a",
+        "preferShorterName": true
+      },
+      "channelFormatId": "index-grouped",
+      "selectorChannelFormatFlattened": {
+        "selectChannelNames": ".anthology-tab a",
+        "matchChannelName": "(?<ch>.*?\\d)",
+        "selectEpisodeLists": ".anthology-list-play.size",
+        "selectEpisodesFromList": "a",
+        "selectEpisodeLinksFromList": "",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
+      },
+      "defaultResolution": "1080P",
+      "defaultSubtitleLanguage": "CHS",
+      "onlySupportsPlayers": [],
+      "selectMedia": {
+        "distinguishSubjectName": true,
+        "distinguishChannelName": true
+      },
+      "matchVideo": {
+        "enableNestedUrl": true,
+        "matchNestedUrl": "$^",
+        "matchVideoUrl": "(^http(s)?:\\/\\/(?!.*http).+\\.(mp4|m3u8|flv|mkv))|(url=(?<v>http(s)?:\\/\\/.+\\.(mp4|m3u8|flv|mkv)))|(^http(s)?:\\/\\/(?!.*http).+(sign\\.bytetos|sign\\.byteimg|mcloud\\.139|cloudflarestorage|tos-cn)\\.com(?!.*\\.ts).+(-expires|-signature))|((bilivideo|akamaized|szbdyd)\\.com(?!.*\\.ts))|(\\/video\\/tos\\/alisg\\/)|(\\/video\\/.*mime_type=video)",
+        "cookies": "quality=1080",
+        "addHeadersToVideo": {
+          "referer": ""
+        }
+      }
+    },
+    "tier": 4
+  }
+}

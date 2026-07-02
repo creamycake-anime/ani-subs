@@ -1,0 +1,62 @@
+{
+  "factoryId": "web-selector",
+  "version": 2,
+  "arguments": {
+    "name": "风车动漫",
+    "description": "",
+    "iconUrl": "https://vdm10.com/favicon.ico",
+    "searchConfig": {
+      "searchUrl": "https://vdm10.com/search/-------------.html?wd={keyword}",
+      "searchUseOnlyFirstWord": true,
+      "rawBaseUrl": "",
+      "requestInterval": 3000,
+      "subjectFormatId": "a",
+      "selectorSubjectFormatA": {
+        "selectLists": "body > div.sear_box > div.sear_con > div> div > div > div.result_title > a",
+        "preferShorterName": true
+      },
+      "selectorSubjectFormatIndexed": {
+        "selectNames": ".search-box .thumb-content > .thumb-txt",
+        "selectLinks": ".search-box .thumb-menu > a",
+        "preferShorterName": true
+      },
+      "selectorSubjectFormatJsonPathIndexed": {
+        "selectLinks": "$[*]['url', 'link']",
+        "selectNames": "$[*]['title','name']",
+        "preferShorterName": true
+      },
+      "channelFormatId": "index-grouped",
+      "selectorChannelFormatFlattened": {
+        "selectChannelNames": "#play div.con_juji_bg div.playlist-tab ul li.tab-switch a",
+        "matchChannelName": "^()?(?<ch>.+?)(\\d+)?$",
+        "selectEpisodeLists": ".con_c2_list",
+        "selectEpisodesFromList": "a",
+        "selectEpisodeLinksFromList": "",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
+      },
+      "selectorChannelFormatNoChannel": {
+        "selectEpisodes": ".con_c2_list > li > a",
+        "selectEpisodeLinks": "",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
+      },
+      "filterByEpisodeSort": true,
+      "filterBySubjectName": true,
+      "selectMedia": {
+        "distinguishSubjectName": true,
+        "distinguishChannelName": true
+      },
+      "matchVideo": {
+        "enableNestedUrl": true,
+        "matchNestedUrl": "^.+(m3u8|vip|xigua\\.php).+\\?",
+        "matchVideoUrl": "(^http(s)?:\\/\\/(?!.*http(s)?:\\/\\/).+((\\.mp4)|(\\.mkv)|(m3u8)).*(\\?.+)?)|(akamaized)|(bilivideo.com)",
+        "cookies": "quality=1080",
+        "addHeadersToVideo": {
+          "referer": "",
+          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+        }
+      },
+      "defaultResolution": "1080P"
+    },
+    "tier": 4
+  }
+}

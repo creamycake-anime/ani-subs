@@ -1,0 +1,63 @@
+{
+  "factoryId": "web-selector",
+  "version": 2,
+  "arguments": {
+    "name": "E-ACG",
+    "description": "",
+    "iconUrl": "https://i.loli.net/2019/12/09/17hvXK2LemTtgfs.png",
+    "searchConfig": {
+      "searchUrl": "https://eacg.net/vodsearch/-------------.html?wd={keyword}",
+      "searchUseOnlyFirstWord": true,
+      "searchRemoveSpecial": true,
+      "rawBaseUrl": "",
+      "requestInterval": 5000,
+      "subjectFormatId": "a",
+      "selectorSubjectFormatA": {
+        "selectLists": "body > div.fed-main-info.fed-min-width > div > div > dl > dd.fed-deta-content > h1 a",
+        "preferShorterName": true
+      },
+      "selectorSubjectFormatIndexed": {
+        "selectNames": ".fed-part-layout .fed-deta-info h1.fed-part-eone",
+        "selectLinks": ".fed-part-layout > .fed-deta-info h1.a",
+        "preferShorterName": true
+      },
+      "selectorSubjectFormatJsonPathIndexed": {
+        "selectLinks": "$[*]['url', 'link']",
+        "selectNames": "$[*]['title','name']",
+        "preferShorterName": true
+      },
+      "channelFormatId": "no-channel",
+      "selectorChannelFormatFlattened": {
+        "selectChannelNames": ".fed-play-btns a",
+        "matchChannelName": "^(?<ch>.+?)(\\d+)?",
+        "selectEpisodeLists": ".fed-play-item .fed-part-rows",
+        "selectEpisodesFromList": "a",
+        "selectEpisodeLinksFromList": "",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
+      },
+      "selectorChannelFormatNoChannel": {
+        "selectEpisodes": ".fed-drop-boxs .fed-part-rows .fed-col-lg1 a",
+        "selectEpisodeLinks": "",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
+      },
+      "defaultResolution": "1080P",
+      "filterByEpisodeSort": true,
+      "filterBySubjectName": true,
+      "selectMedia": {
+        "distinguishSubjectName": true,
+        "distinguishChannelName": true
+      },
+      "matchVideo": {
+        "enableNestedUrl": true,
+        "matchNestedUrl": "^.+(m3u8|vip|xigua\\.php).+\\?",
+        "matchVideoUrl": "(^http(s)?:\\/\\/(?!.*http(s)?:\\/\\/)(?!.*(?:vip\\.dytt-hot\\.com|vip\\.ffzy-play3\\.com|vip\\.dytt-cine\\.com)).+((\\.mp4)|(\\.mkv)|(m3u8)).*(\\?.+)?)|(akamaized)|(bilivideo.com)",
+        "cookies": "quality=1080",
+        "addHeadersToVideo": {
+          "referer": "",
+          "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+        }
+      }
+    },
+    "tier": 2
+  }
+}

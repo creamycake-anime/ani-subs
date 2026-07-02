@@ -1,0 +1,44 @@
+{
+  "factoryId": "web-selector",
+  "version": 2,
+  "arguments": {
+    "name": "去看吧",
+    "description": "直连，来自去看吧，导航：https://11kt.net/",
+    "iconUrl": "https://11kt.net/klogo.png",
+    "searchConfig": {
+      "searchUrl": "https://11kt.net/index.php/vod/search.html?wd={keyword}",
+      "searchUseOnlyFirstWord": true,
+      "subjectFormatId": "a",
+      "selectorSubjectFormatA": {
+        "selectLists": ".fed-part-eone.fed-font-xvi a",
+        "preferShorterName": true
+      },
+      "channelFormatId": "index-grouped",
+      "selectorChannelFormatFlattened": {
+        "selectChannelNames": ".fed-drop-boxs.fed-drop-tops.fed-matp-v a",
+        "matchChannelName": "",
+        "selectEpisodeLists": ".fed-play-item.fed-drop-item",
+        "selectEpisodesFromList": "a.fed-btns-info",
+        "selectEpisodeLinksFromList": "",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
+      },
+      "defaultResolution": "1080P",
+      "defaultSubtitleLanguage": "CHS",
+      "onlySupportsPlayers": [],
+      "selectMedia": {
+        "distinguishSubjectName": true,
+        "distinguishChannelName": true
+      },
+      "matchVideo": {
+        "enableNestedUrl": true,
+        "matchNestedUrl": "$^",
+        "matchVideoUrl": "(^http(s)?:\\/\\/(?!.*http).+\\.(mp4|m3u8|flv|mkv))|(url=(?<v>http(s)?:\\/\\/.+\\.(mp4|m3u8|flv|mkv)))|(^http(s)?:\\/\\/(?!.*http).+(sign\\.bytetos|sign\\.byteimg|mcloud\\.139|cloudflarestorage|tos-cn)\\.com(?!.*\\.ts).+(-expires|-signature))|((bilivideo|akamaized|szbdyd)\\.com(?!.*\\.ts))|(\\/video\\/tos\\/alisg\\/)|(\\/video\\/.*mime_type=video)",
+        "cookies": "quality=1080",
+        "addHeadersToVideo": {
+          "referer": ""
+        }
+      }
+    },
+    "tier": 3
+  }
+}

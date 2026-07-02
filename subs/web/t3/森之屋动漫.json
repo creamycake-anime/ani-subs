@@ -1,0 +1,44 @@
+{
+  "factoryId": "web-selector",
+  "version": 2,
+  "arguments": {
+    "name": "森之屋动漫",
+    "description": "直连，来自森之屋动漫，导航：https://senfun.in/",
+    "iconUrl": "https://senfun.in/static/senfun/mxtheme/images/favicon.png",
+    "searchConfig": {
+      "searchUrl": "https://senfun.in/search.html?wd={keyword}",
+      "searchUseOnlyFirstWord": true,
+      "subjectFormatId": "a",
+      "selectorSubjectFormatA": {
+        "selectLists": "div.module-card-item-title > a",
+        "preferShorterName": true
+      },
+      "channelFormatId": "index-grouped",
+      "selectorChannelFormatFlattened": {
+        "selectChannelNames": "div.module-tab-item.tab-item span",
+        "matchChannelName": "",
+        "selectEpisodeLists": "#panel1",
+        "selectEpisodesFromList": "a.module-play-list-link",
+        "selectEpisodeLinksFromList": "",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
+      },
+      "defaultResolution": "1080P",
+      "defaultSubtitleLanguage": "CHS",
+      "onlySupportsPlayers": [],
+      "selectMedia": {
+        "distinguishSubjectName": true,
+        "distinguishChannelName": true
+      },
+      "matchVideo": {
+        "enableNestedUrl": true,
+        "matchNestedUrl": "$^",
+        "matchVideoUrl": "(^http(s)?:\\/\\/(?!.*http).+\\.(mp4|m3u8|flv|mkv))|(url=(?<v>http(s)?:\\/\\/.+\\.(mp4|m3u8|flv|mkv)))|(^http(s)?:\\/\\/(?!.*http).+(sign\\.bytetos|sign\\.byteimg|mcloud\\.139|cloudflarestorage|tos-cn)\\.com(?!.*\\.ts).+(-expires|-signature))|((bilivideo|akamaized|szbdyd)\\.com(?!.*\\.ts))|(\\/video\\/tos\\/alisg\\/)|(\\/video\\/.*mime_type=video)",
+        "cookies": "quality=1080",
+        "addHeadersToVideo": {
+          "referer": ""
+        }
+      }
+    },
+    "tier": 3
+  }
+}

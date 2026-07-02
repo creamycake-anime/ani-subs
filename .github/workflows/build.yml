@@ -16,16 +16,39 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
-      - run: cp -r subs v1
 
-      # Validate all JSON files in v1
-      - name: Validate JSON
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build subscriptions
         run: |
-          # Fail this step if any file is invalid
+          rm -rf v1
+          node scripts/build-subs.js --out-dir v1
+
+      - name: Validate source JSON
+        run: |
+          # Fail this step if any source file is invalid
+          find subs -type f -name "*.json" -print0 | while IFS= read -r -d '' file; do
+            echo "Validating $file"
+            jq empty "$file"
+          done
+
+      - name: Validate generated JSON
+        run: |
+          # Fail this step if any generated file is invalid
           find v1 -type f -name "*.json" -print0 | while IFS= read -r -d '' file; do
             echo "Validating $file"
             jq empty "$file"
           done
+
+      - name: Upload generated subscriptions
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-subscriptions
+          path: |
+            v1/css1.json
+            v1/bt1.json
 
       # Only upload on push to main
       - name: Upload to R2

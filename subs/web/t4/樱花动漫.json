@@ -1,0 +1,44 @@
+{
+  "factoryId": "web-selector",
+  "version": 2,
+  "arguments": {
+    "name": "樱花动漫",
+    "description": "直连，来自樱花动漫，导航：https://www.yhdm6go.top/",
+    "iconUrl": "https://yhdm6go.top/favicon.ico",
+    "searchConfig": {
+      "searchUrl": "https://yhdm6go.top/vsh/-------------/?wd={keyword}&submit=",
+      "searchUseOnlyFirstWord": true,
+      "subjectFormatId": "a",
+      "selectorSubjectFormatA": {
+        "selectLists": "h4.vodlist_title > a",
+        "preferShorterName": true
+      },
+      "channelFormatId": "index-grouped",
+      "selectorChannelFormatFlattened": {
+        "selectChannelNames": "div.play_source_tab a[href=\"javascript:void(0);\"]",
+        "matchChannelName": "",
+        "selectEpisodeLists": "div.play_list_box.hide",
+        "selectEpisodesFromList": "a",
+        "selectEpisodeLinksFromList": "",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
+      },
+      "defaultResolution": "1080P",
+      "defaultSubtitleLanguage": "CHS",
+      "onlySupportsPlayers": [],
+      "selectMedia": {
+        "distinguishSubjectName": true,
+        "distinguishChannelName": true
+      },
+      "matchVideo": {
+        "enableNestedUrl": true,
+        "matchNestedUrl": "$^",
+        "matchVideoUrl": "(^https?:\\/\\/(?:[^\\/]+\\.)?cdn\\.ryplay12\\.com.+\\.(mp4|m3u8|flv|mkv)(\\?.+)?)|(url=(?<v>https?:\\/\\/(?:[^\\/]+\\.)?cdn\\.ryplay12\\.com.+\\.(mp4|m3u8|flv|mkv)(\\?.+)?))",
+        "cookies": "quality=1080",
+        "addHeadersToVideo": {
+          "referer": ""
+        }
+      }
+    },
+    "tier": 4
+  }
+}
