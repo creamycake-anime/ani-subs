@@ -48,9 +48,11 @@
         "distinguishChannelName": true
       },
       "matchVideo": {
+        "scanDomMediaUrls": true,
+        "scanInlineScriptUrls": true,
         "enableNestedUrl": true,
         "matchNestedUrl": "^.+(m3u8|vip|xigua\\.php).+\\?",
-        "matchVideoUrl": "(^https?:\\/\\/(?:play\\.xluuss\\.com|hn\\.bfvvs\\.com|play\\.subokk\\.com).+((\\.mp4)|(\\.mkv)|(\\.m3u8$)).*(\\?.+)?)|(.+top/\\?url=(?<v>https?:\\/\\/(?:play\\.xluuss\\.com|hn\\.bfvvs\\.com|play\\.subokk\\.com).+))",
+        "matchVideoUrl": "(^https?:\\/\\/(?:play\\.xluuss\\.com|hn\\.bfvvs\\.com|play\\.subokk\\.com).+((\\.mp4)|(\\.mkv)|(\\.m3u8$)).*(\\?.+)?)|(.+top/\\?url=(?<v>https?:\\/\\/(?:play\\.xluuss\\.com|hn\\.bfvvs\\.com|play\\.subokk\\.com).+))|(^https?://(?:[^/]+\\.)?wujinwsym3u8\\.com/.+\\.(?:mp4|m3u8|flv|mkv)(?:\\?.+)?)",
         "cookies": "quality=1080",
         "addHeadersToVideo": {
           "referer": "",

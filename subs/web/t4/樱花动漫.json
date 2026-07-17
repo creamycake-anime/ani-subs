@@ -18,7 +18,7 @@
         "selectChannelNames": "div.play_source_tab a[href=\"javascript:void(0);\"]",
         "matchChannelName": "",
         "selectEpisodeLists": "div.play_list_box.hide",
-        "selectEpisodesFromList": "a",
+        "selectEpisodesFromList": "ul.content_playlist.list_scroll > li > a",
         "selectEpisodeLinksFromList": "",
         "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
       },
@@ -32,7 +32,7 @@
       "matchVideo": {
         "enableNestedUrl": true,
         "matchNestedUrl": "$^",
-        "matchVideoUrl": "(^https?:\\/\\/(?:[^\\/]+\\.)?cdn\\.ryplay12\\.com.+\\.(mp4|m3u8|flv|mkv)(\\?.+)?)|(url=(?<v>https?:\\/\\/(?:[^\\/]+\\.)?cdn\\.ryplay12\\.com.+\\.(mp4|m3u8|flv|mkv)(\\?.+)?))",
+        "matchVideoUrl": "(^https?:\\/\\/(?:[^\\/]+\\.)?cdn\\.ryplay12\\.com.+\\.(mp4|m3u8|flv|mkv)(\\?.+)?)|(url=(?<v>https?:\\/\\/(?:[^\\/]+\\.)?cdn\\.ryplay12\\.com.+\\.(mp4|m3u8|flv|mkv)(\\?.+)?))|(^https?://v\\.baofeng11\\.com/.+\\.(mp4|m3u8|flv|mkv)(\\?.+)?)",
         "cookies": "quality=1080",
         "addHeadersToVideo": {
           "referer": ""
