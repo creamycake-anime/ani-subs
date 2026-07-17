@@ -37,6 +37,18 @@ def ttp_s(t):
     return f"{t}ms" if t else "-"
 
 
+def br_s(b):
+    return f"{b/1_000_000:.1f}M" if b else "-"
+
+
+def res_h(r):
+    """分辨率高度 (排序用)."""
+    try:
+        return int((r or "0x0").split("x")[1])
+    except Exception:
+        return 0
+
+
 def slug(s):
     return re.sub(r"[^\w一-鿿]+", "_", str(s if s is not None else "默认线路")).strip("_")
 
@@ -188,7 +200,7 @@ def dead_reason(source, tier, subjects):
 
 # ---- 数据聚合 ----
 
-def aggregate(subjects):
+def aggregate(subjects, deep):
     all_sources = {}
     for sd in subjects.values():
         for name, row in sd["rows"].items():
@@ -196,14 +208,13 @@ def aggregate(subjects):
     agg = {}
     for source, tier in all_sources.items():
         attempted = ok = 0
-        res, brs, ttps, rescnt = [], [], [], []
         per_subject = {}
         # channel -> 聚合
         channels = {}
 
         def ch_entry(cname):
             return channels.setdefault(cname, {
-                "res": [], "ttp": [], "ok_subjects": set(), "appear": set(),
+                "res": [], "brs": [], "ttp": [], "ok_subjects": set(), "appear": set(),
                 "fails": [], "adsusp": [],
             })
 
@@ -215,14 +226,7 @@ def aggregate(subjects):
             per_subject[sid] = bool(row.get("resolveOk"))
             if row.get("resolveOk"):
                 ok += 1
-                rescnt.append(len(row.get("channelsResolved") or []))
-            if row.get("resolution"):
-                res.append(row["resolution"])
-            if row.get("bitrate"):
-                brs.append(row["bitrate"])
-            if row.get("timeToPlayingMillis"):
-                ttps.append(row["timeToPlayingMillis"])
-            # summary 快数据: 成功线路的 分辨率/起播/广告启发式
+            # summary 快数据: 每线路实播的 分辨率/码率/起播/广告启发式
             for ch in (row.get("perChannel") or []):
                 c = ch_entry(ch.get("channel"))
                 c["appear"].add(sid)
@@ -230,6 +234,8 @@ def aggregate(subjects):
                     c["ok_subjects"].add(sid)
                 if ch.get("resolution"):
                     c["res"].append(ch["resolution"])
+                if ch.get("bitrate"):
+                    c["brs"].append(ch["bitrate"])
                 if ch.get("timeToPlayingMillis"):
                     c["ttp"].append(ch["timeToPlayingMillis"])
                 if ch.get("adSuspicion"):
@@ -248,7 +254,21 @@ def aggregate(subjects):
                     else:
                         c["fails"].append((sd["name"], summarize_fail(r)))
 
-        best_res = max(set(res), key=res.count) if res else None
+        # deep 长播 (28s) 的实测数据并入线路聚合 (码率/分辨率/起播比 4s 快测更可靠)
+        for run in (deep.get(source) or {}).get("runs", []):
+            for dc in run.get("channels", []):
+                c = ch_entry(dc.get("channel"))
+                ma = (dc.get("probe") or {}).get("mediaAnalysis") or {}
+                v = ma.get("video") or {}
+                pb = ma.get("playback") or {}
+                if v.get("width"):
+                    c["res"].append(f"{v['width']}x{v['height']}")
+                br = ma.get("overallBitrate") or v.get("bitrate")
+                if br:
+                    c["brs"].append(br)
+                if pb.get("timeToPlayingMillis"):
+                    c["ttp"].append(pb["timeToPlayingMillis"])
+
         # 源级广告: 只用视觉判读 (subagent 看图), 各线路取最干净可选 (min)
         ch_ads = []
         for cname in channels:
@@ -258,10 +278,17 @@ def aggregate(subjects):
         ch_ads = [a for a in ch_ads if a >= 0]
         ad_clean = min(ch_ads) if ch_ads else -1
         ad_worst = max(ch_ads) if ch_ads else -1
+        # 总表口径: 最佳线路 = 实播成功过的线路里, 按 无广告 > 分辨率 > 码率 > 起播 排第一
+        best = None
+        for cname, c in channels.items():
+            if not c["ok_subjects"]:
+                continue
+            st = channel_stats(source, cname, c, attempted)
+            if best is None or channel_rank_key(st) < channel_rank_key(best["st"]):
+                best = {"channel": cname, "st": st}
         agg[source] = {
             "tier": tier, "okNum": ok, "attempted": attempted,
-            "resolution": best_res, "medBitrate": med(brs),
-            "medTTP": med(ttps), "medResolved": med(rescnt),
+            "best": best,
             "perSubject": per_subject, "channels": channels,
             "adClean": ad_clean, "adWorst": ad_worst,
         }
@@ -269,19 +296,27 @@ def aggregate(subjects):
 
 
 def channel_stats(source, cname, c, n_subjects):
-    """归纳单线路: 广告等级, 成功番数, 分辨率, 起播, 失败原因."""
+    """归纳单线路: 广告等级, 成功番数, 分辨率(跨番众数), 码率/起播(中位数), 失败原因."""
     ad_v, ad_note = visual_ad(source, cname)
     ad_rank = AD_RANK.get(ad_v, -1) if ad_v is not None else -1
     ok_n = len(c["ok_subjects"])
     res = max(set(c["res"]), key=c["res"].count) if c["res"] else None
+    br = med(c["brs"])
     ttp = med(c["ttp"])
     # 失败原因: 取最常见
     reasons = [r for _, r in c["fails"]]
     top_reason = max(set(reasons), key=reasons.count) if reasons else None
     return {"ad_rank": ad_rank, "ad_note": ad_note, "ok_n": ok_n, "res": res,
-            "ttp": ttp, "fails": c["fails"], "top_reason": top_reason,
+            "br": br, "ttp": ttp, "fails": c["fails"], "top_reason": top_reason,
             "appear": len(c["appear"]), "ok_sids": set(c["ok_subjects"]),
             "appear_sids": set(c["appear"])}
+
+
+def channel_rank_key(st):
+    """"最好线路"排序键 (小者优), 逐级比较: ①无广告(视觉判定, 未判定排最后)
+    ②分辨率高 ③码率高 ④起播快."""
+    return (st["ad_rank"] if st["ad_rank"] >= 0 else 9,
+            -res_h(st["res"]), -(st["br"] or 0), st["ttp"] or 10**9)
 
 
 # ---- channel 报告 ----
@@ -305,7 +340,7 @@ def channel_report(source, tier, cname, c, subjects, deep):
                     deep_runs.append((run["subjectName"], dc))
 
     md = [f"# {source} · {d}\n"]
-    md.append(f"> {tier} · {res} · {AD_EMOJI[ad_rank]} · 起播 {ttp or '?'}ms · 跨番实播成功 {ok_n}/{len(subjects)}\n")
+    md.append(f"> {tier} · {res} · {br_s(st['br'])} · {AD_EMOJI[ad_rank]} · 起播 {ttp or '?'}ms · 跨番实播成功 {ok_n}/{len(subjects)}\n")
     md.append(f"[← 返回 {source} 源页](../sources/{tier}-{slug(source)}.md) · [← 总索引](../README.md)\n")
 
     md.append(f"\n## 广告判定: {AD_EMOJI[ad_rank]}\n")
@@ -387,24 +422,27 @@ def source_report(source, tier, a, subjects, ch_reports):
     md = [f"# {source}\n"]
     ad_clean, ad_worst = a["adClean"], a["adWorst"]
     ad_txt = AD_EMOJI[ad_clean] + (f" · 另有线路{AD_SHORT[ad_worst]}" if ad_worst > ad_clean else "")
-    md.append(f"> {tier} · 跨番成功率 {a['okNum']}/{a['attempted']} · {a['resolution'] or '?'} · {ad_txt}\n")
+    best = a["best"]
+    best_res = (best["st"]["res"] if best else None) or "?"
+    md.append(f"> {tier} · 跨番成功率 {a['okNum']}/{a['attempted']} · {best_res} · {ad_txt}\n")
     md.append("[← 总索引](../README.md)\n")
 
-    # 推荐线路 (无广告 + 成功番多)
+    # 推荐线路 (无广告优先, 排序同总表最佳线路口径, 再看成功番数)
     recs = [(cn, info) for cn, info in ch_reports.items()
             if info["st"]["ad_rank"] == 0 and info["st"]["ok_n"] >= 1]
-    recs.sort(key=lambda x: (-x[1]["st"]["ok_n"], x[1]["st"]["ttp"] or 9999))
+    recs.sort(key=lambda x: channel_rank_key(x[1]["st"]) + (-x[1]["st"]["ok_n"],))
     if recs:
-        best = recs[0]
-        md.append(f"\n**推荐线路: {disp_ch(best[0])}** — 无广告, {best[1]['st']['res'] or '?'}, "
-                  f"跨番 {best[1]['st']['ok_n']}/{len(subjects)} 可播, 起播 {best[1]['st']['ttp'] or '?'}ms\n")
+        top = recs[0]
+        md.append(f"\n**推荐线路: {disp_ch(top[0])}** — 无广告, {top[1]['st']['res'] or '?'}, "
+                  f"{br_s(top[1]['st']['br'])}, 跨番 {top[1]['st']['ok_n']}/{len(subjects)} 可播, "
+                  f"起播 {top[1]['st']['ttp'] or '?'}ms\n")
 
     sids = list(subjects.keys())
     subj_short = [sd["name"][:2] for sd in subjects.values()]
     md.append("\n## 线路拆解\n")
-    md.append("每条线路 × 每部番实播: ✅可播 / ❌失败 / — 该番未解析到此线路.\n")
-    md.append("| 线路 | 广告 | 分辨率 | 起播 | " + " | ".join(subj_short) + " | 主要失败原因 | 报告 |")
-    md.append("|---|---|---|---|" + "---|" * len(subj_short) + "---|---|")
+    md.append("每条线路 × 每部番实播: ✅可播 / ❌失败 / — 该番未解析到此线路. ⭐ = 总表所用最佳线路.\n")
+    md.append("| 线路 | 广告 | 分辨率 | 码率 | 起播 | " + " | ".join(subj_short) + " | 主要失败原因 | 报告 |")
+    md.append("|---|---|---|---|---|" + "---|" * len(subj_short) + "---|---|")
 
     def ch_sort(item):
         cn, info = item
@@ -412,10 +450,11 @@ def source_report(source, tier, a, subjects, ch_reports):
         return (-s["ok_n"], s["ad_rank"] if s["ad_rank"] >= 0 else 9, str(cn))
     for cn, info in sorted(ch_reports.items(), key=ch_sort):
         s = info["st"]
+        star = "⭐ " if best and cn == best["channel"] else ""
         adcell = AD_SHORT[s["ad_rank"]]
         reason = s["top_reason"] if (s["ok_n"] < len(subjects) and s["top_reason"]) else ""
         cells = " | ".join(per_subject_cells(s, sids))
-        md.append(f"| {disp_ch(cn)} | {adcell} | {res_s(s['res'])} | {ttp_s(s['ttp'])} | "
+        md.append(f"| {star}{disp_ch(cn)} | {adcell} | {res_s(s['res'])} | {br_s(s['br'])} | {ttp_s(s['ttp'])} | "
                   f"{cells} | {reason} | [详情](../channels/{info['fname']}) |")
 
     md.append("\n## 跨番解析\n")
@@ -432,7 +471,7 @@ def source_report(source, tier, a, subjects, ch_reports):
 def main():
     subjects = load_subjects()
     deep = load_deep()
-    agg = aggregate(subjects)
+    agg = aggregate(subjects, deep)
     sids = list(subjects.keys())
     n = len(sids)
 
@@ -463,51 +502,50 @@ def main():
               f"**{len([1 for _,a in usable if 0<a['okNum']<a['attempted']])}** 个部分可用 · "
               f"**{len(dead)}** 个全部失败\n")
 
-    def res_h(r):
-        try:
-            return int((r or "0x0").split("x")[1])
-        except Exception:
-            return 0
-
-    # 推荐榜: 每个源挑一条最佳线路 (无广告 + 有实测数据 + 成功番多 + 画质好 + 起播快)
+    # 推荐榜: 每个源挑一条最佳线路 (无广告 + 有实测数据 + 成功番多 + 画质好 + 码率高 + 起播快)
     best_per_source = {}
     for source, tier, cname, st, _fn in all_channel_stats:
         if st["ad_rank"] != 0 or st["res"] is None or st["ok_n"] < max(4, n - 1):
             continue
-        key = (-res_h(st["res"]), -st["ok_n"], st["ttp"] or 9999)
+        key = (-res_h(st["res"]), -st["ok_n"], -(st["br"] or 0), st["ttp"] or 9999)
         cur = best_per_source.get(source)
         if cur is None or key < cur[0]:
             best_per_source[source] = (key, tier, cname, st)
-    recs = [(s, v[1], v[2], v[3], agg[s]["medBitrate"]) for s, v in best_per_source.items()]
-    recs.sort(key=lambda x: (-res_h(x[3]["res"]), -x[3]["ok_n"], x[3]["ttp"] or 9999))
+    recs = [(s, v[1], v[2], v[3]) for s, v in best_per_source.items()]
+    recs.sort(key=lambda x: (-res_h(x[3]["res"]), -x[3]["ok_n"], -(x[3]["br"] or 0), x[3]["ttp"] or 9999))
     md.append("\n## 🏆 推荐线路 (无广告 + 跨番稳定, 直接播这条)\n")
     if recs:
         md.append("| 源 | 线路 | Tier | 分辨率 | 码率 | 起播 | 可播 |")
         md.append("|---|---|---|---|---|---|---|")
-        for source, tier, cname, st, br in recs:
-            brs = f"{br/1_000_000:.1f}M" if br else "-"
+        for source, tier, cname, st in recs:
             md.append(f"| [{source}](sources/{src_pages[source]}) | **{disp_ch(cname)}** | {tier} | "
-                      f"{st['res'] or '?'} | {brs} | {st['ttp'] or '?'}ms | {st['ok_n']}/{n} |")
+                      f"{st['res'] or '?'} | {br_s(st['br'])} | {st['ttp'] or '?'}ms | {st['ok_n']}/{n} |")
     else:
         md.append("*(无同时满足 无广告 + 跨番稳定 的线路)*\n")
 
     md.append("\n## 全部可用源 (按广告轻重 → 成功率)\n")
-    md.append("| 源 | Tier | 成功率 | 分辨率 | 码率 | 起播 | 广告 | " +
+    md.append("| 源 | Tier | 成功率 | 最佳线路 | 分辨率 | 码率 | 起播 | 广告 | " +
               " | ".join(sd["name"][:2] for sd in subjects.values()) + " |")
-    md.append("|---|---|---|---|---|---|---|" + "---|" * n)
+    md.append("|---|---|---|---|---|---|---|---|" + "---|" * n)
     for s, a in sorted(usable, key=lambda x: (x[1]["adClean"] if x[1]["adClean"] >= 0 else 9,
                                               -x[1]["okNum"], x[1]["tier"])):
-        br = f"{a['medBitrate']/1_000_000:.1f}M" if a["medBitrate"] else "-"
+        b = a["best"]
+        bst = b["st"] if b else None
+        bname = disp_ch(b["channel"]) if b else "-"
         adtxt = AD_SHORT[a["adClean"]] + ("*" if a["adWorst"] > a["adClean"] else "")
         cells = " | ".join("✅" if a["perSubject"].get(sid) else "❌" for sid in sids)
         md.append(f"| [{s}](sources/{src_pages[s]}) | {a['tier']} | {a['okNum']}/{a['attempted']} | "
-                  f"{a['resolution'] or '-'} | {br} | {a['medTTP'] or '-'}ms | {adtxt} | {cells} |")
-    md.append("\n> 广告列: 最干净可选线路等级; `*` 表示该源另有更脏线路.\n")
+                  f"{bname} | {res_s(bst['res']) if bst else '-'} | {br_s(bst['br']) if bst else '-'} | "
+                  f"{ttp_s(bst['ttp']) if bst else '-'} | {adtxt} | {cells} |")
+    md.append("\n> 分辨率/码率/起播 = 该源**最佳线路**的实测值 (最佳线路排序: ①无广告(视觉判定, 未判定排最后) "
+              "②分辨率 ③码率 ④起播; 只在实播成功过的线路中选; 分辨率取跨番众数, 码率/起播取中位数). "
+              "广告列: 最干净可选线路等级; `*` 表示该源另有更脏线路.\n")
 
     # 各源线路拆解 (直接嵌入 README, 无需点进源页)
     subj_short = [sd["name"][:2] for sd in subjects.values()]
     md.append("\n## 各源线路拆解\n")
-    md.append("每个源逐条线路 × 每部番实播: ✅可播 / ❌失败 / — 该番未解析到此线路. 广告 / 分辨率 / 起播 / 失败原因.\n")
+    md.append("每个源逐条线路 × 每部番实播: ✅可播 / ❌失败 / — 该番未解析到此线路. "
+              "广告 / 分辨率 / 码率 / 起播 / 失败原因. ⭐ = 总表所用最佳线路.\n")
     by_source = {}
     for source, tier, cname, st, fname in all_channel_stats:
         by_source.setdefault(source, {"tier": tier, "chs": []})["chs"].append((cname, st, fname))
@@ -518,14 +556,15 @@ def main():
             continue
         adtxt = AD_SHORT[a["adClean"]] + ("*" if a["adWorst"] > a["adClean"] else "")
         md.append(f"\n### [{s}](sources/{src_pages[s]}) · {a['tier']} · 成功率 {a['okNum']}/{a['attempted']} · 广告 {adtxt}\n")
-        md.append("| 线路 | 广告 | 分辨率 | 起播 | " + " | ".join(subj_short) + " | 失败原因 |")
-        md.append("|---|---|---|---|" + "---|" * len(subj_short) + "---|")
+        md.append("| 线路 | 广告 | 分辨率 | 码率 | 起播 | " + " | ".join(subj_short) + " | 失败原因 |")
+        md.append("|---|---|---|---|---|" + "---|" * len(subj_short) + "---|")
         for cname, st, fname in sorted(info["chs"], key=lambda x: (-x[1]["ok_n"],
                                        x[1]["ad_rank"] if x[1]["ad_rank"] >= 0 else 9, str(x[0]))):
+            star = "⭐ " if a["best"] and cname == a["best"]["channel"] else ""
             reason = st["top_reason"] if (st["ok_n"] < n and st["top_reason"]) else ""
             cells = " | ".join(per_subject_cells(st, sids))
-            md.append(f"| [{disp_ch(cname)}](channels/{fname}) | {AD_SHORT[st['ad_rank']]} | "
-                      f"{res_s(st['res'])} | {ttp_s(st['ttp'])} | {cells} | {reason} |")
+            md.append(f"| {star}[{disp_ch(cname)}](channels/{fname}) | {AD_SHORT[st['ad_rank']]} | "
+                      f"{res_s(st['res'])} | {br_s(st['br'])} | {ttp_s(st['ttp'])} | {cells} | {reason} |")
 
     # 全失败源: 逐个分析失败阶段与原因
     dead_sources = sorted(((s, a["tier"]) for s, a in agg.items() if a["okNum"] == 0),

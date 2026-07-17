@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """批量评测: 对 subs/web 下全部 CSS selector 数据源, 跨 meta.json 指定的番剧,
-跑全流程解析 (all_channels) + 每条线路 VLC 实播 + 多点截图广告检测.
+跑全流程解析 (all_channels) + **每条 resolved 线路**全量 VLC 实播 (采集分辨率/码率/起播).
 
 用法: python3 run_eval.py <report_dir> [只跑指定源名...]
 读 <report_dir>/meta.json: {evalDate, subjects:[{subjectId, episodeId, name}], mcpBin?}
@@ -18,7 +18,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from lib import Mcp, load_meta, repo_root, require_mcp_bin
 
 SUBS_ROOT = repo_root() / "subs" / "web"
-MAX_VLC_PROBES = 3  # 每源实播前几条 resolved 线路
+MAX_CANDIDATES = 100  # 实际上不设限: 每条线路都要解析并实播
 
 
 def collect_sources(only):
@@ -78,15 +78,16 @@ def main():
             resolve = server.call("selector_resolve_episode", {
                 "subjectId": sid, "episodeId": ep, "config": config,
                 "extractVideo": True, "probeVideo": True, "extractMode": "all_channels",
-                "maxCandidatesToExtract": 6, "maxSubjectsPerName": 2, "probeTimeoutMillis": 12000,
-            }, 12 * 60)
+                "maxCandidatesToExtract": MAX_CANDIDATES, "maxSubjectsPerName": 2,
+                "probeTimeoutMillis": 12000,
+            }, 20 * 60)
             record["resolve"] = resolve
             log(f"  resolve ok={resolve.get('ok')} | {str(resolve.get('summary') or resolve.get('_error'))[:90]}")
 
             media_by_id = {m["mediaId"]: m for m in resolve.get("medias", [])}
             probes = []
             resolved = [r for r in resolve.get("extractResults", []) if r.get("resolvedVideo")]
-            for idx, r in enumerate(resolved[:MAX_VLC_PROBES]):
+            for idx, r in enumerate(resolved):  # 全部线路都实播, 不截断
                 media = media_by_id.get(r["candidate"]["mediaId"], {})
                 ch = str(media.get("channel") or f"ch{idx}").replace("/", "_")
                 fdir = report_dir / "subjects" / f"{sid}-{name}" / "frames" / f"{tier}-{src}" / ch
@@ -115,9 +116,12 @@ def main():
                 per_channel.append({
                     "channel": p["channel"], "playerOk": p["probe"].get("ok"),
                     "resolution": f"{v.get('width')}x{v.get('height')}" if v.get("width") else None,
+                    "bitrate": ma.get("overallBitrate") or v.get("bitrate"),
                     "adSuspicion": (p["probe"].get("adAnalysis") or {}).get("suspicion"),
                     "timeToPlayingMillis": pb.get("timeToPlayingMillis"),
                 })
+            # 行级快照 (首条可播线路), 仅供人肉翻 summary.json; 报告总表的"最佳线路"由 gen_report 按
+            # 无广告>分辨率>码率>起播 从 perChannel 重新算, 不用这几个字段.
             best = next((p for p in probes if p["probe"].get("ok")), probes[0] if probes else None)
             bma = ((best or {}).get("probe", {}) or {}).get("mediaAnalysis") or {}
             bv = bma.get("video") or {}

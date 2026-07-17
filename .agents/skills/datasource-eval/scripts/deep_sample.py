@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-"""深度采样: 对可用源 (跨番至少成功 1 次) 的线路, 重新解析并用 VLC 长播 28s
-+ 多点截图 (0/3/8/15/25s), 供 subagent 逐张看图判广告.
+"""深度采样: 对可用源 (跨番至少成功 1 次), 按 **每部番 × 每条线路** 全覆盖重新解析并用
+VLC 长播 28s + 多点截图 (0/3/8/15/25s), 供 subagent 逐张看图判广告 (每条线路都必须有图可判).
 
 用法: python3 deep_sample.py <report_dir>
 读 <report_dir>/subjects/*/summary.json 找可用源, meta.json 拿番剧/episodeId.
@@ -16,8 +16,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from lib import Mcp, load_meta, repo_root, require_mcp_bin
 
 SUBS_ROOT = repo_root() / "subs" / "web"
-MAX_SUBJECTS_PER_SOURCE = 2   # 每源深采几部番 (画廊代表性即可)
-MAX_CHANNELS_PER_RUN = 4      # 每番深采前几条 resolved 线路
+MAX_CANDIDATES = 100          # 实际上不设限: 每条线路都要深采
 SAMPLE_SECONDS = [0, 3, 8, 15, 25]
 
 
@@ -76,19 +75,20 @@ def main():
             continue
         config = json.loads(cfg.read_text())
         record = {"source": name, "tier": tier, "testedAt": datetime.now(timezone.utc).isoformat(), "runs": []}
-        log(f"[{tier}] {name}: {[ep_of[s][1] for s in sids[:MAX_SUBJECTS_PER_SOURCE]]}")
-        for sid in sids[:MAX_SUBJECTS_PER_SOURCE]:
+        log(f"[{tier}] {name}: {[ep_of[s][1] for s in sids]}")
+        for sid in sids:  # 该源解析成功过的每部番都深采
             ep, sub_name = ep_of[sid]
             resolve = server.call("selector_resolve_episode", {
                 "subjectId": int(sid), "episodeId": int(ep), "config": config,
                 "extractVideo": True, "probeVideo": False, "extractMode": "all_channels",
-                "maxCandidatesToExtract": 6, "maxSubjectsPerName": 2, "probeTimeoutMillis": 12000,
-            }, 12 * 60)
+                "maxCandidatesToExtract": MAX_CANDIDATES, "maxSubjectsPerName": 2,
+                "probeTimeoutMillis": 12000,
+            }, 20 * 60)
             media_by_id = {m["mediaId"]: m for m in resolve.get("medias", [])}
             resolved = [r for r in resolve.get("extractResults", []) if r.get("resolvedVideo")]
             log(f"  {sub_name}: {len(resolved)} 线路")
             run = {"subjectId": sid, "subjectName": sub_name, "channels": []}
-            for r in resolved[:MAX_CHANNELS_PER_RUN]:
+            for r in resolved:  # 每条线路都长播采样, 不截断
                 media = media_by_id.get(r["candidate"]["mediaId"], {})
                 ch = str(media.get("channel") or r["candidate"]["mediaId"]).replace("/", "_")
                 rv = r["resolvedVideo"]
