@@ -25,7 +25,8 @@ SRC_DIR = BASE / "sources"
 
 AD_RANK = {"none": 0, "clean": 0, "low": 1, "suspected_low": 1, "medium": 2,
            "suspected_medium": 2, "high": 3, "suspected_high": 3, "unknown": -1, None: -1}
-AD_EMOJI = {0: "✅ 无广告", 1: "🟡 轻微", 2: "🟠 中度博彩水印", 3: "🔴 重度博彩广告", -1: "❔ 未判定"}
+AD_EMOJI = {0: "✅ 无广告", 1: "🟡 轻度(横幅仅片头/片尾)", 2: "🟠 中度(片中也有横幅)",
+            3: "🔴 重度(全程水印/滤不掉的插入广告)", -1: "❔ 未判定"}
 AD_SHORT = {0: "无", 1: "轻", 2: "中", 3: "重", -1: "-"}
 
 
@@ -38,7 +39,8 @@ def ttp_s(t):
 
 
 def br_s(b):
-    return f"{b/1_000_000:.1f}M" if b else "-"
+    # 两位小数: 1.46M 不会被读成 1.5M, 避免与 tier 阈值对不上
+    return f"{b/1_000_000:.2f}M" if b else "-"
 
 
 def res_h(r):
@@ -329,33 +331,40 @@ def channel_rank_key(st):
             -res_h(st["res"]), -(st["br"] or 0), st["ttp"] or 10**9)
 
 
-# 能力分级: (Tier, 需无广告, 最低分辨率高度, 最低码率bps, 最大起播ms). 从上往下取第一个满足的.
+# 能力分级: (Tier, [备选条件组...]), 每组 = (广告等级上限(None=不限), 最低分辨率高度,
+# 最低码率bps, 最大起播ms). 从上往下取第一个有任一条件组满足的 tier.
 CAP_TIERS = [
-    ("T0", True, 1080, 1_800_000, 3000),
-    ("T1", True, 1080, 1_500_000, 5000),
-    ("T2", True, 1080, 1_000_000, 5000),
-    ("T3", True, 1080, 1_000_000, 8000),
-    ("T4", False, 1080, 0, None),
-    ("T5", False, 0, 0, None),
+    ("T0", [(0, 1080, 1_800_000, 3000)]),
+    ("T1", [(0, 1080, 1_500_000, 5000)]),
+    ("T2", [(0, 1080, 1_200_000, 5000)]),
+    ("T3", [(1, 1080, 1_500_000, 8000),   # ≤轻广告
+            (0, 1080, 1_000_000, 8000)]),  # 或无广告低码率
+    ("T4", [(1, 1080, 1_000_000, 8000)]),  # ≤轻广告低码率
+    ("T5", [(None, 1080, 1_000_000, None)]),
+    ("T6", [(None, 0, 0, None)]),
 ]
+HEAVY_AD_MIN_TIER = "T5"  # 硬性约束: 重度广告 (全程水印/滤不掉的插入广告) 必须落在 T5 及之后
 
 
 def capability_tier(st):
-    """按硬指标给线路分级 T0-T5. 无广告只认视觉判定 (none), 未判定不算无广告;
-    缺码率/起播数据视为不满足该项要求."""
-    no_ad = st["ad_rank"] == 0
+    """按硬指标给线路分级 T0-T6. 广告等级只认视觉判定, 未判定不满足任何广告上限要求;
+    缺码率/起播数据视为不满足该项要求; 重度广告最高只能到 HEAVY_AD_MIN_TIER."""
+    ad = st["ad_rank"]
     h = res_h(st["res"])
     br = st["br"] or 0
     ttp = st["ttp"]
-    for name, need_no_ad, min_h, min_br, max_ttp in CAP_TIERS:
-        if need_no_ad and not no_ad:
+    for name, alts in CAP_TIERS:
+        if ad >= 3 and name < HEAVY_AD_MIN_TIER:
             continue
-        if h < min_h or br < min_br:
-            continue
-        if max_ttp is not None and (not ttp or ttp > max_ttp):
-            continue
-        return name
-    return "T5"
+        for max_ad, min_h, min_br, max_ttp in alts:
+            if max_ad is not None and (ad < 0 or ad > max_ad):
+                continue
+            if h < min_h or br < min_br:
+                continue
+            if max_ttp is not None and (not ttp or ttp > max_ttp):
+                continue
+            return name
+    return "T6"
 
 
 # ---- channel 报告 ----
@@ -568,8 +577,10 @@ def main():
     md.append("每条线路按实测硬指标分级 (与 subs/web 的 t0–t4 **目录**分层无关). "
               "无广告只认视觉判定, 未判定不算无广告; 缺数据视为不满足:\n")
     md.append("> **T0** 无广告·1080P·码率≥1.8M·起播≤3s (该源查询成功即可直接选择, 无需等待其他源) · "
-              "**T1** 无广告·1080P·≥1.5M·≤5s · **T2** 无广告·1080P·≥1.0M·≤5s · "
-              "**T3** 无广告·1080P·≥1.0M·≤8s · **T4** 1080P · **T5** 无要求\n")
+              "**T1** 无广告·1080P·≥1.5M·≤5s · **T2** 无广告·1080P·≥1.2M·≤5s · "
+              "**T3** 1080P·(≤轻广告·≥1.5M·≤8s 或 无广告·≥1.0M·≤8s) · "
+              "**T4** ≤轻广告·1080P·≥1.0M·≤8s · **T5** 1080P·≥1.0M · **T6** 无要求. "
+              "重度广告 (全程水印/滤不掉的插入广告) 必须落在 T5 及之后.\n")
     md.append("| 源(线路) | Tier | 分辨率 | 码率 | 编码 | 起播 | 广告 | " + " | ".join(subj_short) + " |")
     md.append("|---|---|---|---|---|---|---|" + "---|" * n)
     tiered = sorted(all_channel_stats,
