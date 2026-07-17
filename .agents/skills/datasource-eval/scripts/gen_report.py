@@ -214,8 +214,8 @@ def aggregate(subjects, deep):
 
         def ch_entry(cname):
             return channels.setdefault(cname, {
-                "res": [], "brs": [], "ttp": [], "ok_subjects": set(), "appear": set(),
-                "fails": [], "adsusp": [],
+                "res": [], "brs": [], "ttp": [], "codecs": [], "ok_subjects": set(),
+                "appear": set(), "fails": [], "adsusp": [],
             })
 
         for sid, sd in subjects.items():
@@ -236,6 +236,8 @@ def aggregate(subjects, deep):
                     c["res"].append(ch["resolution"])
                 if ch.get("bitrate"):
                     c["brs"].append(ch["bitrate"])
+                if ch.get("codec"):
+                    c["codecs"].append(ch["codec"])
                 if ch.get("timeToPlayingMillis"):
                     c["ttp"].append(ch["timeToPlayingMillis"])
                 if ch.get("adSuspicion"):
@@ -254,10 +256,15 @@ def aggregate(subjects, deep):
                     else:
                         c["fails"].append((sd["name"], summarize_fail(r)))
 
-        # deep 长播 (28s) 的实测数据并入线路聚合 (码率/分辨率/起播比 4s 快测更可靠)
+        # deep 长播 (28s) 的实测数据并入线路聚合 (码率/分辨率/起播比 4s 快测更可靠);
+        # deep 实播成功也算可播证据 (失败不算 ❌: deep 是二次解析, 可能只是 URL 过期)
         for run in (deep.get(source) or {}).get("runs", []):
+            rsid = str(run.get("subjectId"))
             for dc in run.get("channels", []):
                 c = ch_entry(dc.get("channel"))
+                if rsid in subjects and (dc.get("probe") or {}).get("ok"):
+                    c["appear"].add(rsid)
+                    c["ok_subjects"].add(rsid)
                 ma = (dc.get("probe") or {}).get("mediaAnalysis") or {}
                 v = ma.get("video") or {}
                 pb = ma.get("playback") or {}
@@ -266,6 +273,8 @@ def aggregate(subjects, deep):
                 br = ma.get("overallBitrate") or v.get("bitrate")
                 if br:
                     c["brs"].append(br)
+                if v.get("codec"):
+                    c["codecs"].append(v["codec"])
                 if pb.get("timeToPlayingMillis"):
                     c["ttp"].append(pb["timeToPlayingMillis"])
 
@@ -303,13 +312,14 @@ def channel_stats(source, cname, c, n_subjects):
     res = max(set(c["res"]), key=c["res"].count) if c["res"] else None
     br = med(c["brs"])
     ttp = med(c["ttp"])
+    codec = max(set(c["codecs"]), key=c["codecs"].count) if c["codecs"] else None
     # 失败原因: 取最常见
     reasons = [r for _, r in c["fails"]]
     top_reason = max(set(reasons), key=reasons.count) if reasons else None
     return {"ad_rank": ad_rank, "ad_note": ad_note, "ok_n": ok_n, "res": res,
-            "br": br, "ttp": ttp, "fails": c["fails"], "top_reason": top_reason,
-            "appear": len(c["appear"]), "ok_sids": set(c["ok_subjects"]),
-            "appear_sids": set(c["appear"])}
+            "br": br, "ttp": ttp, "codec": codec, "fails": c["fails"],
+            "top_reason": top_reason, "appear": len(c["appear"]),
+            "ok_sids": set(c["ok_subjects"]), "appear_sids": set(c["appear"])}
 
 
 def channel_rank_key(st):
@@ -317,6 +327,35 @@ def channel_rank_key(st):
     ②分辨率高 ③码率高 ④起播快."""
     return (st["ad_rank"] if st["ad_rank"] >= 0 else 9,
             -res_h(st["res"]), -(st["br"] or 0), st["ttp"] or 10**9)
+
+
+# 能力分级: (Tier, 需无广告, 最低分辨率高度, 最低码率bps, 最大起播ms). 从上往下取第一个满足的.
+CAP_TIERS = [
+    ("T0", True, 1080, 1_800_000, 3000),
+    ("T1", True, 1080, 1_500_000, 5000),
+    ("T2", True, 1080, 1_000_000, 5000),
+    ("T3", True, 1080, 1_000_000, 8000),
+    ("T4", False, 1080, 0, None),
+    ("T5", False, 0, 0, None),
+]
+
+
+def capability_tier(st):
+    """按硬指标给线路分级 T0-T5. 无广告只认视觉判定 (none), 未判定不算无广告;
+    缺码率/起播数据视为不满足该项要求."""
+    no_ad = st["ad_rank"] == 0
+    h = res_h(st["res"])
+    br = st["br"] or 0
+    ttp = st["ttp"]
+    for name, need_no_ad, min_h, min_br, max_ttp in CAP_TIERS:
+        if need_no_ad and not no_ad:
+            continue
+        if h < min_h or br < min_br:
+            continue
+        if max_ttp is not None and (not ttp or ttp > max_ttp):
+            continue
+        return name
+    return "T5"
 
 
 # ---- channel 报告 ----
@@ -474,6 +513,7 @@ def main():
     agg = aggregate(subjects, deep)
     sids = list(subjects.keys())
     n = len(sids)
+    subj_short = [sd["name"][:2] for sd in subjects.values()]
 
     src_pages = {}
     all_channel_stats = []  # (source, tier, cname, st) 供推荐榜
@@ -523,6 +563,23 @@ def main():
     else:
         md.append("*(无同时满足 无广告 + 跨番稳定 的线路)*\n")
 
+    # 能力分级表: 每条实测线路一行, 按 T0-T5 硬指标分级
+    md.append("\n## 📶 线路能力分级 (Tier)\n")
+    md.append("每条线路按实测硬指标分级 (与 subs/web 的 t0–t4 **目录**分层无关). "
+              "无广告只认视觉判定, 未判定不算无广告; 缺数据视为不满足:\n")
+    md.append("> **T0** 无广告·1080P·码率≥1.8M·起播≤3s (该源查询成功即可直接选择, 无需等待其他源) · "
+              "**T1** 无广告·1080P·≥1.5M·≤5s · **T2** 无广告·1080P·≥1.0M·≤5s · "
+              "**T3** 无广告·1080P·≥1.0M·≤8s · **T4** 1080P · **T5** 无要求\n")
+    md.append("| 源(线路) | Tier | 分辨率 | 码率 | 编码 | 起播 | 广告 | " + " | ".join(subj_short) + " |")
+    md.append("|---|---|---|---|---|---|---|" + "---|" * n)
+    tiered = sorted(all_channel_stats,
+                    key=lambda x: (capability_tier(x[3]), -x[3]["ok_n"]) + channel_rank_key(x[3]) + (x[0],))
+    for source, tier, cname, st, fname in tiered:
+        cells = " | ".join(per_subject_cells(st, sids))
+        md.append(f"| [{source}({disp_ch(cname)})](channels/{fname}) | **{capability_tier(st)}** | "
+                  f"{res_s(st['res'])} | {br_s(st['br'])} | {st['codec'] or '-'} | {ttp_s(st['ttp'])} | "
+                  f"{AD_SHORT[st['ad_rank']]} | {cells} |")
+
     md.append("\n## 全部可用源 (按广告轻重 → 成功率)\n")
     md.append("| 源 | Tier | 成功率 | 最佳线路 | 分辨率 | 码率 | 起播 | 广告 | " +
               " | ".join(sd["name"][:2] for sd in subjects.values()) + " |")
@@ -542,7 +599,6 @@ def main():
               "广告列: 最干净可选线路等级; `*` 表示该源另有更脏线路.\n")
 
     # 各源线路拆解 (直接嵌入 README, 无需点进源页)
-    subj_short = [sd["name"][:2] for sd in subjects.values()]
     md.append("\n## 各源线路拆解\n")
     md.append("每个源逐条线路 × 每部番实播: ✅可播 / ❌失败 / — 该番未解析到此线路. "
               "广告 / 分辨率 / 码率 / 起播 / 失败原因. ⭐ = 总表所用最佳线路.\n")

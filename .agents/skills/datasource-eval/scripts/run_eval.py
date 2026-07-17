@@ -117,6 +117,7 @@ def main():
                     "channel": p["channel"], "playerOk": p["probe"].get("ok"),
                     "resolution": f"{v.get('width')}x{v.get('height')}" if v.get("width") else None,
                     "bitrate": ma.get("overallBitrate") or v.get("bitrate"),
+                    "codec": v.get("codec"),
                     "adSuspicion": (p["probe"].get("adAnalysis") or {}).get("suspicion"),
                     "timeToPlayingMillis": pb.get("timeToPlayingMillis"),
                 })
