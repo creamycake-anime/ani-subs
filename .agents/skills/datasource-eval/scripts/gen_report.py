@@ -15,7 +15,7 @@ import statistics
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from lib import pick_bitrate_resolution
+from lib import pick_bitrate_resolution, playback_ok
 
 BASE = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
 META = json.loads((BASE / "meta.json").read_text()) if (BASE / "meta.json").exists() else {}
@@ -240,17 +240,20 @@ def aggregate(subjects, deep):
                 "appear": set(), "fails": [], "adsusp": [],
             })
 
+        attempted_sids = set()
         for sid, sd in subjects.items():
             row = sd["rows"].get(source)
             if not row:
                 continue
             attempted += 1
-            per_subject[sid] = False  # 番格成功与否在聚合完后按真实播放器成功重算
+            attempted_sids.add(sid)
+            trace = load_source_trace(sd["dir"], tier, source)
             # summary 快数据: 每线路实播的 分辨率/码率/起播/广告启发式
             for ch in (row.get("perChannel") or []):
                 c = ch_entry(ch.get("channel"))
                 c["appear"].add(sid)
-                if ch.get("playerOk"):
+                # 可播以 trace 的实播结果为准 (playback.ran && ok); 只有缺 trace 的旧数据才退 playerOk
+                if trace is None and ch.get("playerOk"):
                     c["ok_subjects"].add(sid)
                 if ch.get("resolution"):
                     c["res"].append(ch["resolution"])
@@ -263,17 +266,18 @@ def aggregate(subjects, deep):
                 if ch.get("adSuspicion"):
                     c["adsusp"].append(ch["adSuspicion"])
             # trace: 每线路 成功/失败/错误原因
-            trace = load_source_trace(sd["dir"], tier, source)
             if trace:
                 resolve = trace.get("resolve", {})
                 mid2ch = {m["mediaId"]: m.get("channel") for m in resolve.get("medias", [])}
-                # 真实可播只认播放器 probe.ok。extractResult.ok 仅代表拿到了视频 URL，不能算实播成功。
+                # 真实可播只认播放器实播 (playback.ran && ok, 见 lib.playback_ok)。
+                # probe.ok 在 mpv 不可用时退回 HTTP 探测结论, extractResult.ok 仅代表拿到
+                # 了视频 URL——都不能算实播成功。
                 for p in trace.get("playerProbes", []):
                     cn = p.get("channel")
                     c = ch_entry(cn)
                     c["appear"].add(sid)
                     probe = p.get("probe") or {}
-                    if probe.get("ok"):
+                    if playback_ok(probe):
                         c["ok_subjects"].add(sid)
                     else:
                         c["fails"].append((sd["name"], summarize_probe_fail(probe)))
@@ -290,7 +294,7 @@ def aggregate(subjects, deep):
             rsid = str(run.get("subjectId"))
             for dc in run.get("channels", []):
                 c = ch_entry(dc.get("channel"))
-                if rsid in subjects and (dc.get("probe") or {}).get("ok"):
+                if rsid in subjects and playback_ok(dc.get("probe")):
                     c["appear"].add(rsid)
                     c["ok_subjects"].add(rsid)
                 ma = (dc.get("probe") or {}).get("mediaAnalysis") or {}
@@ -309,10 +313,11 @@ def aggregate(subjects, deep):
                     c["ttp"].append(pb["timeToPlayingMillis"])
 
         # 源级和番格成功率同样只认真实播放器成功（快测或 deep 任一成功即可）。
+        # 番格三态: 只对真实尝试过的番记 ✅/❌; 未尝试 (断点续跑局部数据) 不进 perSubject, 渲染为 —。
         actual_ok_sids = set()
         for c in channels.values():
             actual_ok_sids.update(c["ok_subjects"])
-        per_subject = {sid: sid in actual_ok_sids for sid in subjects}
+        per_subject = {sid: sid in actual_ok_sids for sid in attempted_sids}
         ok = len(actual_ok_sids)
 
         # 源级广告: 只用视觉判读 (subagent 看图), 各线路取最干净可选 (min)
@@ -438,8 +443,17 @@ def hls_structural_line(source, cname, deep_runs, subjects):
         can = "**可**" if h.get("filterable") else "**不可**"
         return (f"HLS 结构探测: 检出 {len(groups)} 组插入片段 ({rngs}), "
                 f"Ani 客户端广告过滤器{can}自动滤除。(辅助证据, 等级以看图为准)")
+    # unchanged 的这几种 reason 是"检出候选但拒绝滤除", 不是干净——按滤不掉口径处理
+    UNFILTERABLE_REASONS = {
+        "all_segments_candidate": "全部分组都命中候选, 拒绝滤除以防误删正片",
+        "encrypted_implicit_iv": "AES-128 无显式 IV, 删段会破坏解密链",
+        "byterange_implicit_offset": "byterange 无显式偏移, 删段会破坏偏移链",
+    }
+    if h.get("status") == "unchanged" and h.get("reason") in UNFILTERABLE_REASONS:
+        return (f"HLS 结构探测: 检出疑似插入片段, 但过滤器**不可**自动滤除"
+                f" ({UNFILTERABLE_REASONS[h['reason']]})。(辅助证据, 等级以看图为准; 按滤不掉口径处理)")
     if h.get("status") == "unsupported":
-        return "HLS 结构探测: 过滤器不支持该清单格式, 无法给出自动滤除结论。"
+        return "HLS 结构探测: 过滤器不支持该清单格式, 无法给出自动滤除结论 (按滤不掉口径处理)。"
     return "HLS 结构探测: 无插入片段迹象 (烧录水印/横幅需看图判定)。"
 
 
@@ -496,7 +510,7 @@ def channel_report(source, tier, cname, c, subjects, deep):
     else:
         md.append("\n*(该线路未纳入深度采样, 无多点截图)*\n")
 
-    sample = next((dc for _, dc in deep_runs if dc["probe"].get("ok")), None)
+    sample = next((dc for _, dc in deep_runs if playback_ok(dc["probe"])), None)
     if not sample and deep_runs:
         sample = deep_runs[0][1]
     if sample:
@@ -525,19 +539,18 @@ def channel_report(source, tier, cname, c, subjects, deep):
         md.append(f"| {pb.get('openMillis')}ms | {pb.get('timeToPlayingMillis')}ms | "
                   f"{pb.get('timeToFirstFrameMillis')}ms | {pb.get('bufferingCount')} 次 |")
 
-    # 跨番实播 + 失败原因
+    # 跨番实播 + 失败原因 (与聚合同口径: 快测或 deep/backfill 任一实播成功即 ✅)
     fail_by_subj = {sub: reason for sub, reason in st["fails"]}
     md.append("\n## 跨番实播\n")
     md.append("| 番剧 | 结果 | 失败原因 |")
     md.append("|---|---|---|")
     for sid, sd in subjects.items():
-        row = sd["rows"].get(source)
-        chs = {ch.get("channel"): ch for ch in (row.get("perChannel") or [])} if row else {}
-        played = chs.get(cname, {}).get("playerOk")
-        if played:
+        if sid in st["ok_sids"]:
             mark, reason = "✅ 可播", ""
         elif sd["name"] in fail_by_subj:
             mark, reason = "❌ 失败", fail_by_subj[sd["name"]]
+        elif sid in st["appear_sids"]:
+            mark, reason = "❌ 失败", "实播未成功(无具体原因记录)"
         else:
             mark, reason = "— 未出现", "该番未解析到此线路"
         md.append(f"| {sd['name']} | {mark} | {reason} |")
@@ -593,7 +606,8 @@ def source_report(source, tier, a, subjects, ch_reports):
     md.append("| 番剧 | 整体解析 |")
     md.append("|---|---|")
     for sid, sd in subjects.items():
-        md.append(f"| {sd['name']} | {'✅' if a['perSubject'].get(sid) else '❌'} |")
+        mark = "✅" if a["perSubject"].get(sid) else ("❌" if sid in a["perSubject"] else "— 未测")
+        md.append(f"| {sd['name']} | {mark} |")
     fp.write_text("\n".join(md))
     return f"{tier}-{slug(source)}.md"
 
@@ -639,7 +653,8 @@ def main():
     # 推荐榜: 每个源挑一条最佳线路 (无广告 + 有实测数据 + 成功番多 + 画质好 + 码率高 + 起播快)
     best_per_source = {}
     for source, tier, cname, st, _fn in all_channel_stats:
-        if st["ad_rank"] != 0 or st["res"] is None or st["ok_n"] < max(4, n - 1):
+        # 跨番成功 ≥ n-1 (与 SKILL/规范一致; 旧的 max(4, n-1) 在 3 部番时永远无解)
+        if st["ad_rank"] != 0 or st["res"] is None or st["ok_n"] < max(1, n - 1):
             continue
         key = (-res_h(st["res"]), -st["ok_n"], -(st["br"] or 0), st["ttp"] or 9999)
         cur = best_per_source.get(source)
@@ -686,7 +701,9 @@ def main():
         bst = b["st"] if b else None
         bname = disp_ch(b["channel"]) if b else "-"
         adtxt = AD_SHORT[a["adClean"]] + ("*" if a["adWorst"] > a["adClean"] else "")
-        cells = " | ".join("✅" if a["perSubject"].get(sid) else "❌" for sid in sids)
+        cells = " | ".join(
+            "✅" if a["perSubject"].get(sid) else ("❌" if sid in a["perSubject"] else "—")
+            for sid in sids)
         md.append(f"| [{s}](sources/{src_pages[s]}) | {a['tier']} | {a['okNum']}/{a['attempted']} | "
                   f"{bname} | {res_s(bst['res']) if bst else '-'} | {br_s(bst['br']) if bst else '-'} | "
                   f"{ttp_s(bst['ttp']) if bst else '-'} | {adtxt} | {cells} |")

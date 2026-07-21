@@ -16,7 +16,8 @@ import time
 from datetime import datetime, timezone
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from lib import Mcp, ffprobe_all, load_meta, pick_bitrate_resolution, repo_root, require_mcp_bin
+from lib import (Mcp, ffprobe_all, load_meta, pick_bitrate_resolution, playback_ok,
+                 repo_root, require_mcp_bin, require_player_available, safe_dir)
 
 SUBS_ROOT = repo_root() / "subs" / "web"
 MAX_CANDIDATES = 100  # 实际上不设限: 每条线路都要解析并实播
@@ -90,7 +91,7 @@ def main():
             resolved = [r for r in resolve.get("extractResults", []) if r.get("resolvedVideo")]
             for idx, r in enumerate(resolved):  # 全部线路都实播, 不截断
                 media = media_by_id.get(r["candidate"]["mediaId"], {})
-                ch = str(media.get("channel") or f"ch{idx}").replace("/", "_")
+                ch = safe_dir(media.get("channel") or f"ch{idx}")
                 fdir = report_dir / "subjects" / f"{sid}-{name}" / "frames" / f"{tier}-{src}" / ch
                 rv = r["resolvedVideo"]
                 probe = server.call("probe_video", {
@@ -99,9 +100,10 @@ def main():
                     "probeTimeoutMillis": 12000,
                     "detectAds": True, "captureFramesDir": str(fdir),
                 }, 4 * 60)
-                # 播放成功的线路再用 ffprobe 实测基础指标 (分辨率/编码/码率); 只测可播的, 控制耗时
+                require_player_available(probe)  # mpv 没加载直接中止, 防止 HTTP 可达充当可播
+                # 真实播出来的线路再用 ffprobe 实测基础指标 (分辨率/编码/码率); 只测可播的, 控制耗时
                 fprobe = ffprobe_all(rv["url"], rv.get("headers") or {}, sample_seconds=10) \
-                    if probe.get("ok") else None
+                    if playback_ok(probe) else None
                 probes.append({"mediaId": r["candidate"]["mediaId"], "channel": media.get("channel"),
                                "videoUrl": rv["url"], "probe": probe, "ffprobe": fprobe})
             record["playerProbes"] = probes
@@ -121,7 +123,8 @@ def main():
                 ad = p["probe"].get("adAnalysis") or {}
                 br, br_src, res = pick_bitrate_resolution(p.get("ffprobe"), ma)
                 per_channel.append({
-                    "channel": p["channel"], "playerOk": p["probe"].get("ok"),
+                    # 可播只认真实实播 (playback.ran && ok), 不是 probe.ok (后者含 HTTP 兜底)
+                    "channel": p["channel"], "playerOk": playback_ok(p["probe"]),
                     "resolution": res,
                     "bitrate": br, "bitrateSource": br_src,
                     "codec": v.get("codec") or ((p.get("ffprobe") or {}).get("streams") or {}).get("vcodec"),
@@ -132,7 +135,7 @@ def main():
                 })
             # 行级快照 (首条可播线路), 仅供人肉翻 summary.json; 报告总表的"最佳线路"由 gen_report 按
             # 无广告>分辨率>码率>起播 从 perChannel 重新算, 不用这几个字段.
-            best = next((p for p in probes if p["probe"].get("ok")), probes[0] if probes else None)
+            best = next((p for p in probes if playback_ok(p["probe"])), probes[0] if probes else None)
             bma = ((best or {}).get("probe", {}) or {}).get("mediaAnalysis") or {}
             bpb = bma.get("playback") or {}
             bbr, bbr_src, bres = pick_bitrate_resolution((best or {}).get("ffprobe"), bma)

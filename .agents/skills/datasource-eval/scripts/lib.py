@@ -7,6 +7,7 @@ import json
 import os
 import pathlib
 import platform
+import re
 import socket
 import subprocess
 import sys
@@ -59,6 +60,35 @@ def require_mcp_bin(meta=None):
 
 def load_meta(report_dir):
     return json.loads((pathlib.Path(report_dir) / "meta.json").read_text())
+
+
+def playback_ok(probe):
+    """真实实播成功: 只认播放器 playback.ran && ok.
+
+    probe_video 的顶层 ok 在播放器不可用 (mpv 原生库没加载) 时会退回 HTTP 探测结论,
+    HTTP 可达 ≠ 可播, 不能作为可播依据 (run_eval/deep_sample/gen_report 统一用本函数).
+    """
+    pb = (((probe or {}).get("mediaAnalysis") or {}).get("playback")) or {}
+    return bool(pb.get("ran") and pb.get("ok"))
+
+
+def require_player_available(probe):
+    """mediaAnalysis.available == false 说明 mpv 原生库没加载, 播放全被跳过——
+    继续跑会把 'HTTP 可达' 当 '可播' 记进报告, 直接中止并给出修复指引."""
+    ma = (probe or {}).get("mediaAnalysis") or {}
+    if ma.get("available") is False:
+        sys.exit(
+            "mpv 原生库未加载 (mediaAnalysis.available=false), 实播全部被跳过, 中止评测.\n"
+            "  继续跑只会把 HTTP 可达当可播, 产出虚假报告.\n"
+            "  修复: 构建 mediamp worktree 的 mpv natives, 或设 ANI_MPV_NATIVE_DIR 指向\n"
+            "  含 libmpv/libmediampv 的目录 (见 SKILL.md 排障).\n"
+            f"  播放器错误: {'; '.join(ma.get('errors') or [])[:300]}"
+        )
+
+
+def safe_dir(value):
+    """线路名 → 安全目录名 (run_eval 与 deep_sample 统一用, 保证路径一致)."""
+    return re.sub(r'[<>:"/\\|?*]+', "_", str(value)).strip() or "default"
 
 
 def find_mpv_native_dir():

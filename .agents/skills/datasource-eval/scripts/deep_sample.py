@@ -17,13 +17,13 @@
 """
 import json
 import pathlib
-import re
 import sys
 import time
 from datetime import datetime, timezone
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from lib import Mcp, ffprobe_all, load_meta, repo_root, require_mcp_bin
+from lib import (Mcp, ffprobe_all, load_meta, playback_ok, repo_root, require_mcp_bin,
+                 require_player_available, safe_dir)
 
 SUBS_ROOT = repo_root() / "subs" / "web"
 MAX_CANDIDATES = 100          # 实际上不设限: 每条线路都要深采
@@ -58,8 +58,21 @@ def _channel_key(value):
     return "None" if value is None else str(value)
 
 
-def _safe_dir(value):
-    return re.sub(r'[<>:"/\\|?*]+', "_", str(value)).strip() or "default"
+def ad_capture_plan(ad_detect):
+    """由 detect_hls_ads 结果算截图计划: 疑似插入广告段的中点 (≤55s) 加为截图点,
+    并相应延长播放时长 (基础 28s, 上限 60s). 返回 (groups, extras, capture_at, play_seconds)."""
+    groups = (((ad_detect.get("analysis") or {}).get("hlsFilter") or {})
+              .get("removedGroups")) or []
+    extras = sorted({
+        int((g["startOffsetSeconds"] + g["endOffsetSeconds"]) / 2)
+        for g in groups
+        if g.get("startOffsetSeconds") is not None
+        and g.get("endOffsetSeconds") is not None
+    } - set(SAMPLE_SECONDS))
+    extras = [e for e in extras if 0 <= e <= 55]
+    capture_at = sorted(set(SAMPLE_SECONDS) | set(extras))
+    play_seconds = min(60, max(28, max(capture_at) + 3))
+    return groups, extras, capture_at, play_seconds
 
 
 def backfill_quick_success(report_dir, deep_dir, server, log):
@@ -86,7 +99,7 @@ def backfill_quick_success(report_dir, deep_dir, server, log):
                 continue
             trace = json.loads(trace_file.read_text())
             quick_probes = [p for p in (trace.get("playerProbes") or [])
-                            if (p.get("probe") or {}).get("ok")]
+                            if playback_ok(p.get("probe"))]
             if not quick_probes:
                 continue
 
@@ -122,14 +135,23 @@ def backfill_quick_success(report_dir, deep_dir, server, log):
                 media_id = quick.get("mediaId")
                 rv = resolved_by_media.get(media_id) or {}
                 url = quick.get("videoUrl") or rv.get("url")
-                fdir = src_dir / subject_name / f"{_safe_dir(ckey)}__quick-backfill" / "frames"
+                headers = rv.get("headers") or {}
+                fdir = src_dir / subject_name / f"{safe_dir(ckey)}__quick-backfill" / "frames"
                 log(f"[backfill] {source}/{ckey} · {subject_name}")
+                # 与主深采同口径: 结构预筛 + 加采点 + ffprobe 实测
+                ad_detect = server.call("detect_hls_ads", {"url": url, "headers": headers}, 120)
+                _groups, extras, capture_at, play_seconds = ad_capture_plan(ad_detect)
+                if extras:
+                    log(f"  HLS 检出疑似插入片段, 加采 {extras}s, 长播 {play_seconds}s")
+                fprobe = ffprobe_all(url, headers, sample_seconds=30)
                 probe = server.call("probe_video", {
-                    "videoUrl": url, "headers": rv.get("headers") or {},
-                    "showWindow": False, "playSeconds": 28, "playTimeoutMillis": 90000,
+                    "videoUrl": url, "headers": headers,
+                    "showWindow": False, "playSeconds": play_seconds,
+                    "playTimeoutMillis": 90000 + 2000 * (play_seconds - 28),
                     "probeTimeoutMillis": 12000, "detectAds": True,
-                    "captureFramesDir": str(fdir), "captureAtSeconds": SAMPLE_SECONDS,
+                    "captureFramesDir": str(fdir), "captureAtSeconds": capture_at,
                 }, 6 * 60)
+                require_player_available(probe)
                 new_frames = probe.get("capturedFrames") or []
                 if not new_frames:  # URL 过期/播不出: 跳过, 该线路保持"未判定", 不拿快测帧充数
                     log(f"  !! 补跑无帧 (URL 可能已过期), 跳过: {source}/{ckey} · {subject_name}")
@@ -138,6 +160,7 @@ def backfill_quick_success(report_dir, deep_dir, server, log):
 
                 run.setdefault("channels", []).append({
                     "channel": channel, "mediaId": media_id, "videoUrl": url,
+                    "adDetect": ad_detect, "ffprobe": fprobe,
                     "probe": probe, "backfilledFromQuick": True,
                 })
                 added += 1
@@ -197,24 +220,14 @@ def main():
             run = {"subjectId": sid, "subjectName": sub_name, "channels": []}
             for r in resolved:  # 每条线路都长播采样, 不截断
                 media = media_by_id.get(r["candidate"]["mediaId"], {})
-                ch = str(media.get("channel") or r["candidate"]["mediaId"]).replace("/", "_")
+                ch = safe_dir(media.get("channel") or r["candidate"]["mediaId"])
                 rv = r["resolvedVideo"]
                 headers = rv.get("headers") or {}
                 fdir = src_dir / sub_name / ch / "frames"
                 # HLS 结构预筛: 拉 m3u8 跑结构启发式 + Ani 真实客户端广告过滤器 (HlsManifestFilter);
                 # 疑似插入广告段的中点 (≤55s) 自动加为截图点, 结果 (adDetect) 供看图判定用
                 ad_detect = server.call("detect_hls_ads", {"url": rv["url"], "headers": headers}, 120)
-                groups = (((ad_detect.get("analysis") or {}).get("hlsFilter") or {})
-                          .get("removedGroups")) or []
-                extras = sorted({
-                    int((g["startOffsetSeconds"] + g["endOffsetSeconds"]) / 2)
-                    for g in groups
-                    if g.get("startOffsetSeconds") is not None
-                    and g.get("endOffsetSeconds") is not None
-                } - set(SAMPLE_SECONDS))
-                extras = [e for e in extras if 0 <= e <= 55]
-                capture_at = sorted(set(SAMPLE_SECONDS) | set(extras))
-                play_seconds = min(60, max(28, max(capture_at) + 3))
+                groups, extras, capture_at, play_seconds = ad_capture_plan(ad_detect)
                 if extras:
                     log(f"    {ch}: HLS 检出疑似插入片段 {len(groups)} 组, 加采 {extras}s, "
                         f"长播 {play_seconds}s")
@@ -227,6 +240,7 @@ def main():
                     "probeTimeoutMillis": 12000, "detectAds": True,
                     "captureFramesDir": str(fdir), "captureAtSeconds": capture_at,
                 }, 6 * 60)
+                require_player_available(probe)  # mpv 没加载直接中止, 防止产出无帧假深采
                 pb = (probe.get("mediaAnalysis") or {}).get("playback") or {}
                 log(f"    {ch}: ok={probe.get('ok')} 帧={len(probe.get('capturedFrames') or [])} "
                     f"起播={pb.get('timeToPlayingMillis')}ms")
