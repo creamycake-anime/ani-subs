@@ -8,6 +8,7 @@ import pathlib
 import subprocess
 import sys
 import time
+import urllib.request
 
 # 报告目录布局: <report_dir>/{meta.json, subjects/, deep/, montage/, combined/, sources/, channels/, README.md}
 
@@ -60,11 +61,20 @@ class Mcp:
 
     def __init__(self, bin_path, log=None):
         self.bin = str(bin_path)
+        self.url = os.environ.get("ANIMEKO_MCP_URL")
         self.proc = None
         self.next_id = 0
         self.log = log or (lambda m: None)
 
     def start(self):
+        if self.url:
+            self.next_id = 0
+            cid = self._id()
+            self._http_request(
+                {"jsonrpc": "2.0", "id": cid, "method": "initialize"},
+                timeout_s=60,
+            )
+            return
         self.stop()
         self.proc = subprocess.Popen(
             [self.bin], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
@@ -73,6 +83,8 @@ class Mcp:
         self._read_until(self.next_id, time.time() + 60)
 
     def stop(self):
+        if self.url:
+            return
         if self.proc:
             self.proc.kill()
             self.proc.wait()
@@ -115,6 +127,18 @@ class Mcp:
                     return msg
 
     def call(self, tool, args, timeout_s=300):
+        if self.url:
+            cid = self._id()
+            try:
+                msg = self._http_request({
+                    "jsonrpc": "2.0", "id": cid, "method": "tools/call",
+                    "params": {"name": tool, "arguments": args},
+                }, timeout_s)
+            except Exception as e:
+                self.log(f"  !! {tool}: {e}")
+                return {"_error": str(e)}
+            sc = (msg.get("result") or {}).get("structuredContent")
+            return sc if sc is not None else {"_error": json.dumps(msg.get("error") or msg)[:300]}
         if self.proc is None or self.proc.poll() is not None:
             self.start()
         cid = self._id()
@@ -128,3 +152,13 @@ class Mcp:
             return {"_error": str(e)}
         sc = (msg.get("result") or {}).get("structuredContent")
         return sc if sc is not None else {"_error": json.dumps(msg.get("error") or msg)[:300]}
+
+    def _http_request(self, payload, timeout_s):
+        request = urllib.request.Request(
+            self.url,
+            data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=timeout_s) as response:
+            return json.loads(response.read().decode("utf-8"))

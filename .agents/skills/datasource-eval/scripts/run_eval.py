@@ -94,8 +94,9 @@ def main():
                 rv = r["resolvedVideo"]
                 probe = server.call("probe_video", {
                     "videoUrl": rv["url"], "headers": rv.get("headers") or {},
-                    "showWindow": False, "playSeconds": 4, "probeTimeoutMillis": 12000,
-                    "detectAds": True, "captureFramesDir": str(fdir),
+                    "showWindow": False, "playSeconds": 4, "playTimeoutMillis": 15000,
+                    "probeTimeoutMillis": 12000,
+                    "detectAds": False, "captureFramesDir": str(fdir),
                 }, 4 * 60)
                 probes.append({"mediaId": r["candidate"]["mediaId"], "channel": media.get("channel"),
                                "videoUrl": rv["url"], "probe": probe})

@@ -128,6 +128,23 @@ def summarize_fail(r):
     return (txt[:70] or "未知")
 
 
+def summarize_probe_fail(probe):
+    """把播放器探测失败归纳成人话；可播只认 probe.ok，不能把 URL 解析成功当成实播成功。"""
+    txt = " ".join(str(x) for x in (probe.get("errors") or []))
+    summary = str(probe.get("summary") or "")
+    combined = f"{summary} {txt}".strip()
+    low = combined.lower()
+    if "403" in combined:
+        return "视频 URL 返回 403(防盗链 / 地区限制)"
+    if "404" in combined:
+        return "视频 URL 返回 404"
+    if "timeout" in low or "超时" in combined:
+        return "播放器实播超时 / 卡顿"
+    if "state=error" in low or "播放器无法播放" in combined:
+        return "播放器无法播放"
+    return "播放探测失败: " + (combined[:55] or "未知")
+
+
 # ---- 逐源 trace: 每线路跨番 成功/失败/原因 ----
 
 def load_source_trace(subject_dir, tier, source):
@@ -225,9 +242,7 @@ def aggregate(subjects, deep):
             if not row:
                 continue
             attempted += 1
-            per_subject[sid] = bool(row.get("resolveOk"))
-            if row.get("resolveOk"):
-                ok += 1
+            per_subject[sid] = False
             # summary 快数据: 每线路实播的 分辨率/码率/起播/广告启发式
             for ch in (row.get("perChannel") or []):
                 c = ch_entry(ch.get("channel"))
@@ -249,13 +264,21 @@ def aggregate(subjects, deep):
             if trace:
                 resolve = trace.get("resolve", {})
                 mid2ch = {m["mediaId"]: m.get("channel") for m in resolve.get("medias", [])}
+                # 真实可播只认播放器 probe.ok。extractResult.ok 仅代表拿到了视频 URL，不能算实播成功。
+                for p in trace.get("playerProbes", []):
+                    cn = p.get("channel")
+                    c = ch_entry(cn)
+                    c["appear"].add(sid)
+                    probe = p.get("probe") or {}
+                    if probe.get("ok"):
+                        c["ok_subjects"].add(sid)
+                    else:
+                        c["fails"].append((sd["name"], summarize_probe_fail(probe)))
                 for r in resolve.get("extractResults", []):
                     cn = mid2ch.get((r.get("candidate") or {}).get("mediaId"))
                     c = ch_entry(cn)
                     c["appear"].add(sid)
-                    if r.get("ok"):
-                        c["ok_subjects"].add(sid)
-                    else:
+                    if not r.get("ok"):
                         c["fails"].append((sd["name"], summarize_fail(r)))
 
         # deep 长播 (28s) 的实测数据并入线路聚合 (码率/分辨率/起播比 4s 快测更可靠);
@@ -279,6 +302,13 @@ def aggregate(subjects, deep):
                     c["codecs"].append(v["codec"])
                 if pb.get("timeToPlayingMillis"):
                     c["ttp"].append(pb["timeToPlayingMillis"])
+
+        # 源级和番格成功率同样只认真实播放器成功（快测或 deep 任一成功即可）。
+        actual_ok_sids = set()
+        for c in channels.values():
+            actual_ok_sids.update(c["ok_subjects"])
+        per_subject = {sid: sid in actual_ok_sids for sid in subjects}
+        ok = len(actual_ok_sids)
 
         # 源级广告: 只用视觉判读 (subagent 看图), 各线路取最干净可选 (min)
         ch_ads = []
@@ -545,7 +575,7 @@ def main():
     md = ["# ani-subs CSS Selector 数据源评估报告\n"]
     md.append(f"**评测日期: {EVAL_DATE}**\n")
     md.append(f"跨 **{n}** 部番剧 × **{len(agg)}** 个源. "
-              "每源全流程解析 + 每条线路用 Animeko 播放器 (VLC) 实播 + 多点截图广告检测 + subagent 逐张看图判广告.\n")
+              "每源全流程解析 + 每条线路用 Animeko 播放器 (MPV) 实播 + 多点截图广告检测 + subagent 逐张看图判广告.\n")
     md.append("\n测试番剧: " + ", ".join(sd["name"] for sd in subjects.values()) + "\n")
     md.append(f"\n**{len([1 for _,a in usable if a['okNum']==a['attempted']])}** 个稳定可用 · "
               f"**{len([1 for _,a in usable if 0<a['okNum']<a['attempted']])}** 个部分可用 · "
