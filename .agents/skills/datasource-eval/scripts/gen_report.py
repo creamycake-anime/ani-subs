@@ -2,9 +2,9 @@
 """生成三层图文报告: README 索引 → sources/<源>.md → channels/<源-线路>.md
 
 数据来源:
-  subjects/<id>-<名>/summary.json      跨番快指标 (分辨率/起播/广告启发式)
+  subjects/<id>-<名>/summary.json      跨番快指标 (分辨率/码率(ffprobe 优先)/起播/HLS 过滤器结论)
   subjects/<id>-<名>/sources/*.json     逐源 trace (每线路 resolve/probe 成功失败 + 错误原因)
-  deep/<tier>-<源>/deep.json            深采: 长播多点截图 + 播放性能
+  deep/<tier>-<源>/deep.json            深采: 长播多点截图 + 播放性能 + adDetect 结构探测 + ffprobe
   combined/frames_verdicts.json         视觉广告标注 (subagent 逐张看图)
 """
 import json
@@ -13,6 +13,9 @@ import pathlib
 import re
 import statistics
 import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from lib import pick_bitrate_resolution
 
 BASE = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
 META = json.loads((BASE / "meta.json").read_text()) if (BASE / "meta.json").exists() else {}
@@ -242,7 +245,7 @@ def aggregate(subjects, deep):
             if not row:
                 continue
             attempted += 1
-            per_subject[sid] = False
+            per_subject[sid] = False  # 番格成功与否在聚合完后按真实播放器成功重算
             # summary 快数据: 每线路实播的 分辨率/码率/起播/广告启发式
             for ch in (row.get("perChannel") or []):
                 c = ch_entry(ch.get("channel"))
@@ -281,7 +284,7 @@ def aggregate(subjects, deep):
                     if not r.get("ok"):
                         c["fails"].append((sd["name"], summarize_fail(r)))
 
-        # deep 长播 (28s) 的实测数据并入线路聚合 (码率/分辨率/起播比 4s 快测更可靠);
+        # deep 长播 (基础 28s, 检出疑似广告时延长) 的实测数据并入线路聚合 (比 4s 快测更可靠);
         # deep 实播成功也算可播证据 (失败不算 ❌: deep 是二次解析, 可能只是 URL 过期)
         for run in (deep.get(source) or {}).get("runs", []):
             rsid = str(run.get("subjectId"))
@@ -293,13 +296,15 @@ def aggregate(subjects, deep):
                 ma = (dc.get("probe") or {}).get("mediaAnalysis") or {}
                 v = ma.get("video") or {}
                 pb = ma.get("playback") or {}
-                if v.get("width"):
-                    c["res"].append(f"{v['width']}x{v['height']}")
-                br = ma.get("overallBitrate") or v.get("bitrate")
+                # 码率/分辨率优先 ffprobe 实测 (deep 记录里的 ffprobe 字段; 旧数据没有则退播放器)
+                br, _src, res = pick_bitrate_resolution(dc.get("ffprobe"), ma)
+                if res:
+                    c["res"].append(res)
                 if br:
                     c["brs"].append(br)
-                if v.get("codec"):
-                    c["codecs"].append(v["codec"])
+                codec = v.get("codec") or ((dc.get("ffprobe") or {}).get("streams") or {}).get("vcodec")
+                if codec:
+                    c["codecs"].append(codec)
                 if pb.get("timeToPlayingMillis"):
                     c["ttp"].append(pb["timeToPlayingMillis"])
 
@@ -399,6 +404,45 @@ def capability_tier(st):
 
 # ---- channel 报告 ----
 
+def channel_hls_filter(source, cname, deep_runs, subjects):
+    """取该线路的 HLS 结构探测结论: deep 的 detect_hls_ads (adDetect) 优先,
+    退 summary 的 adFilter (probe adAnalysis.hlsFilter). 优先取检出过插入片段的那份."""
+    found = None
+    for _, dc in deep_runs:
+        h = ((dc.get("adDetect") or {}).get("analysis") or {}).get("hlsFilter")
+        if h:
+            if h.get("removedGroups"):
+                return h
+            found = found or h
+    for sd in subjects.values():
+        row = sd["rows"].get(source) or {}
+        for ch in row.get("perChannel") or []:
+            if ch.get("channel") == cname and ch.get("adFilter"):
+                h = ch["adFilter"]
+                if h.get("removedGroups"):
+                    return h
+                found = found or h
+    return found
+
+
+def hls_structural_line(source, cname, deep_runs, subjects):
+    """广告判定的辅助证据行. 等级仍以 frames_verdicts 的视觉判读为准 (烧录水印看不见)."""
+    h = channel_hls_filter(source, cname, deep_runs, subjects)
+    if not h:
+        return None
+    groups = h.get("removedGroups") or []
+    if groups:
+        rngs = ", ".join(
+            f"{int(g.get('startOffsetSeconds') or 0)}-{int(g.get('endOffsetSeconds') or 0)}s"
+            for g in groups)
+        can = "**可**" if h.get("filterable") else "**不可**"
+        return (f"HLS 结构探测: 检出 {len(groups)} 组插入片段 ({rngs}), "
+                f"Ani 客户端广告过滤器{can}自动滤除。(辅助证据, 等级以看图为准)")
+    if h.get("status") == "unsupported":
+        return "HLS 结构探测: 过滤器不支持该清单格式, 无法给出自动滤除结论。"
+    return "HLS 结构探测: 无插入片段迹象 (烧录水印/横幅需看图判定)。"
+
+
 def channel_report(source, tier, cname, c, subjects, deep):
     CH_DIR.mkdir(exist_ok=True)
     d = disp_ch(cname)
@@ -426,10 +470,14 @@ def channel_report(source, tier, cname, c, subjects, deep):
         md.append(f"**视觉判断**: {st['ad_note']}\n")
     elif ad_rank == -1:
         md.append("*(该线路未纳入视觉判读)*\n")
+    hls_line = hls_structural_line(source, cname, deep_runs, subjects)
+    if hls_line:
+        md.append(hls_line + "\n")
 
     if deep_runs:
-        md.append("\n## 播放采样 (0/3/8/15/25s)\n")
-        md.append("每部番实播 28 秒, 在各时间点截图. 首帧仍是广告说明前贴片较长.\n")
+        md.append("\n## 播放采样\n")
+        md.append("每部番长播实测 (基础 28s, 检出疑似插入广告段时延长), 在 0/3/8/15/25s "
+                  "及疑似广告段中点截图. 首帧仍是广告说明前贴片较长.\n")
         for sub_name, dc in deep_runs:
             frames = [f for f in (dc["probe"].get("capturedFrames") or [])
                       if f["label"].startswith("frame_")]
@@ -456,15 +504,21 @@ def channel_report(source, tier, cname, c, subjects, deep):
         v = ma.get("video") or {}
         a = ma.get("audio") or {}
         pb = ma.get("playback") or {}
+        fst = (sample.get("ffprobe") or {}).get("streams") or {}
         md.append("\n## 媒体信息\n")
-        md.append("| 分辨率 | 视频编码 | 帧率 | 音频 | 时长 | 码率 |")
-        md.append("|---|---|---|---|---|---|")
-        dur = ma.get("durationSeconds")
+        md.append("| 分辨率 | 视频编码 | 帧率 | 音频 | 时长 | 码率 | 码率来源 |")
+        md.append("|---|---|---|---|---|---|---|")
+        dur = ma.get("durationSeconds") or fst.get("durationSeconds")
         durs = f"{int(dur)//60}:{int(dur)%60:02d}" if dur else "?"
-        br = ma.get("overallBitrate") or v.get("bitrate")
+        # 码率/分辨率优先 ffprobe 实测 (旧数据没有 ffprobe 字段则退播放器统计)
+        br, br_src, res = pick_bitrate_resolution(sample.get("ffprobe"), ma)
         brs = f"{br/1_000_000:.1f} Mbps" if br else "?"
-        md.append(f"| {v.get('width')}x{v.get('height')} | {v.get('codec')} | {v.get('frameRate')}fps | "
-                  f"{a.get('codec')} {a.get('sampleRate')}Hz {a.get('channels')}ch | {durs} | {brs} |")
+        src_label = {"ffprobe_measured": "ffprobe 实测均值", "ffprobe_format": "ffprobe format",
+                     "player": "播放器统计"}.get(br_src, "-")
+        codec = v.get("codec") or fst.get("vcodec") or "?"
+        fps = v.get("frameRate") or fst.get("fps") or "?"
+        md.append(f"| {res or '?'} | {codec} | {fps}fps | "
+                  f"{a.get('codec')} {a.get('sampleRate')}Hz {a.get('channels')}ch | {durs} | {brs} | {src_label} |")
         md.append("\n## 播放性能\n")
         md.append("| 打开 | 起播 | 首帧 | 卡顿 |")
         md.append("|---|---|---|---|")
@@ -575,7 +629,8 @@ def main():
     md = ["# ani-subs CSS Selector 数据源评估报告\n"]
     md.append(f"**评测日期: {EVAL_DATE}**\n")
     md.append(f"跨 **{n}** 部番剧 × **{len(agg)}** 个源. "
-              "每源全流程解析 + 每条线路用 Animeko 播放器 (MPV) 实播 + 多点截图广告检测 + subagent 逐张看图判广告.\n")
+              "每源全流程解析 + 每条线路用 Animeko 桌面播放器 (mpv) 实播 + ffprobe 实测码率 "
+              "+ HLS 结构广告探测 (真实客户端过滤器) + 多点截图 + subagent 逐张看图判广告.\n")
     md.append("\n测试番剧: " + ", ".join(sd["name"] for sd in subjects.values()) + "\n")
     md.append(f"\n**{len([1 for _,a in usable if a['okNum']==a['attempted']])}** 个稳定可用 · "
               f"**{len([1 for _,a in usable if 0<a['okNum']<a['attempted']])}** 个部分可用 · "

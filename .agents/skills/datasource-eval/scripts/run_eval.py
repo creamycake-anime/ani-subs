@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """批量评测: 对 subs/web 下全部 CSS selector 数据源, 跨 meta.json 指定的番剧,
-跑全流程解析 (all_channels) + **每条 resolved 线路**全量 VLC 实播 (采集分辨率/码率/起播).
+跑全流程解析 (all_channels) + **每条 resolved 线路**全量 mpv 实播 (采集可播性/起播)
++ ffprobe 实测分辨率/码率 (bitrateSource 标注来源) + HLS 过滤器结论 (adFilter).
 
 用法: python3 run_eval.py <report_dir> [只跑指定源名...]
 读 <report_dir>/meta.json: {evalDate, subjects:[{subjectId, episodeId, name}], mcpBin?}
@@ -15,7 +16,7 @@ import time
 from datetime import datetime, timezone
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from lib import Mcp, load_meta, repo_root, require_mcp_bin
+from lib import Mcp, ffprobe_all, load_meta, pick_bitrate_resolution, repo_root, require_mcp_bin
 
 SUBS_ROOT = repo_root() / "subs" / "web"
 MAX_CANDIDATES = 100  # 实际上不设限: 每条线路都要解析并实播
@@ -96,10 +97,13 @@ def main():
                     "videoUrl": rv["url"], "headers": rv.get("headers") or {},
                     "showWindow": False, "playSeconds": 4, "playTimeoutMillis": 15000,
                     "probeTimeoutMillis": 12000,
-                    "detectAds": False, "captureFramesDir": str(fdir),
+                    "detectAds": True, "captureFramesDir": str(fdir),
                 }, 4 * 60)
+                # 播放成功的线路再用 ffprobe 实测基础指标 (分辨率/编码/码率); 只测可播的, 控制耗时
+                fprobe = ffprobe_all(rv["url"], rv.get("headers") or {}, sample_seconds=10) \
+                    if probe.get("ok") else None
                 probes.append({"mediaId": r["candidate"]["mediaId"], "channel": media.get("channel"),
-                               "videoUrl": rv["url"], "probe": probe})
+                               "videoUrl": rv["url"], "probe": probe, "ffprobe": fprobe})
             record["playerProbes"] = probes
             (rd / "sources" / f"{tier}-{src}.json").write_text(json.dumps(record, ensure_ascii=False, indent=2))
 
@@ -114,20 +118,24 @@ def main():
                 ma = p["probe"].get("mediaAnalysis") or {}
                 v = ma.get("video") or {}
                 pb = ma.get("playback") or {}
+                ad = p["probe"].get("adAnalysis") or {}
+                br, br_src, res = pick_bitrate_resolution(p.get("ffprobe"), ma)
                 per_channel.append({
                     "channel": p["channel"], "playerOk": p["probe"].get("ok"),
-                    "resolution": f"{v.get('width')}x{v.get('height')}" if v.get("width") else None,
-                    "bitrate": ma.get("overallBitrate") or v.get("bitrate"),
-                    "codec": v.get("codec"),
-                    "adSuspicion": (p["probe"].get("adAnalysis") or {}).get("suspicion"),
+                    "resolution": res,
+                    "bitrate": br, "bitrateSource": br_src,
+                    "codec": v.get("codec") or ((p.get("ffprobe") or {}).get("streams") or {}).get("vcodec"),
+                    "adSuspicion": ad.get("suspicion"),
+                    # 真实客户端 HLS 广告过滤器结论 (filterable/removedGroups), 供报告与判定用
+                    "adFilter": ad.get("hlsFilter"),
                     "timeToPlayingMillis": pb.get("timeToPlayingMillis"),
                 })
             # 行级快照 (首条可播线路), 仅供人肉翻 summary.json; 报告总表的"最佳线路"由 gen_report 按
             # 无广告>分辨率>码率>起播 从 perChannel 重新算, 不用这几个字段.
             best = next((p for p in probes if p["probe"].get("ok")), probes[0] if probes else None)
             bma = ((best or {}).get("probe", {}) or {}).get("mediaAnalysis") or {}
-            bv = bma.get("video") or {}
             bpb = bma.get("playback") or {}
+            bbr, bbr_src, bres = pick_bitrate_resolution((best or {}).get("ffprobe"), bma)
             summary.append({
                 "source": src, "tier": tier,
                 "configValid": (record["validate"] or {}).get("ok"),
@@ -137,8 +145,8 @@ def main():
                 "channelsResolved": ok_ch, "channelsFailed": fail_ch,
                 "stageTimings": stage_timings(resolve),
                 "totalResolveMillis": resolve.get("totalDurationMillis"),
-                "resolution": f"{bv.get('width')}x{bv.get('height')}" if bv.get("width") else None,
-                "bitrate": bma.get("overallBitrate") or bv.get("bitrate"),
+                "resolution": bres,
+                "bitrate": bbr, "bitrateSource": bbr_src,
                 "timeToPlayingMillis": bpb.get("timeToPlayingMillis"),
                 "perChannel": per_channel,
             })

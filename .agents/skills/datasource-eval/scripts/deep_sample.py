@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
-"""深度采样: 对可用源 (跨番至少成功 1 次), 按 **每部番 × 每条线路** 全覆盖重新解析并用
-MPV 长播 28s + 多点截图 (0/3/8/15/25s), 供 subagent 逐张看图判广告 (每条线路都必须有图可判).
+"""深度采样: 对可用源 (跨番至少成功 1 次), 按 **每部番 × 每条线路** 全覆盖重新解析,
+先 detect_hls_ads 做 HLS 结构预筛 (真实客户端过滤器; 疑似插入广告段中点自动加为截图点),
+再用 mpv 长播 (基础 28s, 有加采点时延长至最多 60s) + 多点截图 (0/3/8/15/25s + 加采点),
+外加 ffprobe 实测基础指标, 供 subagent 逐张看图判广告 (每条线路都必须有图可判).
 
 用法:
   python3 deep_sample.py <report_dir>
   python3 deep_sample.py <report_dir> --backfill-quick
 
 第二种模式会找出快测曾真实播放成功、但深采二次解析未复现截图的番剧/线路，直接复用快测
-保存的视频 URL 补跑 28s；若 URL 已过期，则保留快测当时实际截到的帧作为最低限度视觉证据。
+保存的视频 URL 补跑 28s 完整多点截图；URL 已过期/截不到帧则跳过，该线路保持"未判定"
+(快测只有开头 ~4s 两帧，判不出轻/中/重，不拿它充当视觉证据)。
 读 <report_dir>/subjects/*/summary.json 找可用源, meta.json 拿番剧/episodeId.
 产物: <report_dir>/deep/<tier>-<源>/<番>/<线路>/frames/*.png + deep/<tier>-<源>/deep.json
+      (deep.json 每线路含 adDetect 结构探测结果与 ffprobe 实测指标)
 """
 import json
 import pathlib
@@ -19,7 +23,7 @@ import time
 from datetime import datetime, timezone
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-from lib import Mcp, load_meta, repo_root, require_mcp_bin
+from lib import Mcp, ffprobe_all, load_meta, repo_root, require_mcp_bin
 
 SUBS_ROOT = repo_root() / "subs" / "web"
 MAX_CANDIDATES = 100          # 实际上不设限: 每条线路都要深采
@@ -62,10 +66,12 @@ def backfill_quick_success(report_dir, deep_dir, server, log):
     """用快测成功记录补齐深采漏掉的 (番剧, 源, 线路) 截图。
 
     selector 每次搜索结果可能变化，正常深采重新解析时可能无法复现快测中的线路。快测 source
-    trace 保存了当时已实际播放成功的视频 URL、headers 和两张截图；优先对该 URL 重跑 28s，
-    URL 失效时把快测截图并入 deep.json，确保真实成功过的线路不会完全缺少视觉证据。
+    trace 保存了当时已实际播放成功的视频 URL 和 headers；直接对该 URL 重跑 28s 完整多点
+    截图 (省掉二次解析)。URL 失效/截不到帧则跳过——快测只有开头 ~4s 两帧, 判不出轻/中/重,
+    帧标签也不是 frame_XXs (看图 agent 与报告画廊都消费不了), 不拿它充当视觉证据,
+    该线路保持"未判定"。
     """
-    attempted = added = long_ok = quick_fallback = 0
+    attempted = added = long_ok = 0
     for subject_dir in sorted((report_dir / "subjects").glob("*")):
         if not subject_dir.is_dir() or "-" not in subject_dir.name:
             continue
@@ -121,37 +127,24 @@ def backfill_quick_success(report_dir, deep_dir, server, log):
                 probe = server.call("probe_video", {
                     "videoUrl": url, "headers": rv.get("headers") or {},
                     "showWindow": False, "playSeconds": 28, "playTimeoutMillis": 90000,
-                    "probeTimeoutMillis": 12000, "detectAds": False,
+                    "probeTimeoutMillis": 12000, "detectAds": True,
                     "captureFramesDir": str(fdir), "captureAtSeconds": SAMPLE_SECONDS,
                 }, 6 * 60)
                 new_frames = probe.get("capturedFrames") or []
-                used_quick = False
-                if new_frames:
-                    long_ok += 1
-                else:
-                    quick_probe = json.loads(json.dumps(quick.get("probe") or {}))
-                    old_frames = [f for f in (quick_probe.get("capturedFrames") or [])
-                                  if f.get("path") and pathlib.Path(f["path"]).exists()]
-                    if not old_frames:
-                        log(f"  !! 无新帧且快测帧已不存在: {source}/{ckey} · {subject_name}")
-                        continue
-                    quick_probe["capturedFrames"] = old_frames
-                    probe = quick_probe
-                    used_quick = True
-                    quick_fallback += 1
+                if not new_frames:  # URL 过期/播不出: 跳过, 该线路保持"未判定", 不拿快测帧充数
+                    log(f"  !! 补跑无帧 (URL 可能已过期), 跳过: {source}/{ckey} · {subject_name}")
+                    continue
+                long_ok += 1
 
                 run.setdefault("channels", []).append({
                     "channel": channel, "mediaId": media_id, "videoUrl": url,
                     "probe": probe, "backfilledFromQuick": True,
-                    "usedQuickFrames": used_quick,
                 })
                 added += 1
                 src_dir.mkdir(parents=True, exist_ok=True)
                 deep_file.write_text(json.dumps(record, ensure_ascii=False, indent=2))
-                log(f"  + 帧={len(probe.get('capturedFrames') or [])} "
-                    f"ok={probe.get('ok')} quickFallback={used_quick}")
-    log(f"=== 快测补采完成: 尝试 {attempted}, 写入 {added}, 28s 补采有帧 {long_ok}, "
-        f"回退快测帧 {quick_fallback}")
+                log(f"  + 帧={len(new_frames)} ok={probe.get('ok')}")
+    log(f"=== 快测补采完成: 尝试 {attempted}, 写入 {added}, 28s 补采有帧 {long_ok}")
 
 
 def main():
@@ -206,19 +199,42 @@ def main():
                 media = media_by_id.get(r["candidate"]["mediaId"], {})
                 ch = str(media.get("channel") or r["candidate"]["mediaId"]).replace("/", "_")
                 rv = r["resolvedVideo"]
+                headers = rv.get("headers") or {}
                 fdir = src_dir / sub_name / ch / "frames"
+                # HLS 结构预筛: 拉 m3u8 跑结构启发式 + Ani 真实客户端广告过滤器 (HlsManifestFilter);
+                # 疑似插入广告段的中点 (≤55s) 自动加为截图点, 结果 (adDetect) 供看图判定用
+                ad_detect = server.call("detect_hls_ads", {"url": rv["url"], "headers": headers}, 120)
+                groups = (((ad_detect.get("analysis") or {}).get("hlsFilter") or {})
+                          .get("removedGroups")) or []
+                extras = sorted({
+                    int((g["startOffsetSeconds"] + g["endOffsetSeconds"]) / 2)
+                    for g in groups
+                    if g.get("startOffsetSeconds") is not None
+                    and g.get("endOffsetSeconds") is not None
+                } - set(SAMPLE_SECONDS))
+                extras = [e for e in extras if 0 <= e <= 55]
+                capture_at = sorted(set(SAMPLE_SECONDS) | set(extras))
+                play_seconds = min(60, max(28, max(capture_at) + 3))
+                if extras:
+                    log(f"    {ch}: HLS 检出疑似插入片段 {len(groups)} 组, 加采 {extras}s, "
+                        f"长播 {play_seconds}s")
+                # 基础媒体指标: ffprobe 流信息 + ffmpeg 拷 30s 实测均值码率
+                fprobe = ffprobe_all(rv["url"], headers, sample_seconds=30)
                 probe = server.call("probe_video", {
-                    "videoUrl": rv["url"], "headers": rv.get("headers") or {},
-                    "showWindow": False, "playSeconds": 28, "playTimeoutMillis": 90000,
-                    "probeTimeoutMillis": 12000, "detectAds": False,
-                    "captureFramesDir": str(fdir), "captureAtSeconds": SAMPLE_SECONDS,
+                    "videoUrl": rv["url"], "headers": headers,
+                    "showWindow": False, "playSeconds": play_seconds,
+                    "playTimeoutMillis": 90000 + 2000 * (play_seconds - 28),
+                    "probeTimeoutMillis": 12000, "detectAds": True,
+                    "captureFramesDir": str(fdir), "captureAtSeconds": capture_at,
                 }, 6 * 60)
                 pb = (probe.get("mediaAnalysis") or {}).get("playback") or {}
                 log(f"    {ch}: ok={probe.get('ok')} 帧={len(probe.get('capturedFrames') or [])} "
                     f"起播={pb.get('timeToPlayingMillis')}ms")
                 run["channels"].append({"channel": media.get("channel"),
                                         "mediaId": r["candidate"]["mediaId"],
-                                        "videoUrl": rv["url"], "probe": probe})
+                                        "videoUrl": rv["url"],
+                                        "adDetect": ad_detect, "ffprobe": fprobe,
+                                        "probe": probe})
             record["runs"].append(run)
         src_dir.mkdir(parents=True, exist_ok=True)
         (src_dir / "deep.json").write_text(json.dumps(record, ensure_ascii=False, indent=2))
