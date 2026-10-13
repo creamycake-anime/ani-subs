@@ -1,0 +1,64 @@
+{
+  "factoryId": "web-selector",
+  "version": 2,
+  "arguments": {
+    "name": "2k动漫",
+    "description": "直连，来自 MuteFun / 2k动漫，导航：https://www.2kdm.com/",
+    "iconUrl": "https://www.2kdm.com/favicon.ico",
+    "searchConfig": {
+      "searchUrl": "https://www.2kdm.com/index.php/ajax/suggest?mid=1&wd={keyword}",
+      "searchUseOnlyFirstWord": true,
+      "searchRemoveSpecial": true,
+      "rawBaseUrl": "",
+      "subjectFormatId": "json-path-indexed",
+      "selectorSubjectFormatA": {
+        "selectLists": "div.video-info-header > a",
+        "preferShorterName": true
+      },
+      "selectorSubjectFormatIndexed": {
+        "selectNames": "",
+        "selectLinks": "",
+        "preferShorterName": true
+      },
+      "selectorSubjectFormatJsonPathIndexed": {
+        "selectLinks": "$.list[*]['id']",
+        "selectNames": "$.list[*]['name']",
+        "linkTemplate": "/voddetail/{value}.html",
+        "preferShorterName": true
+      },
+      "channelFormatId": "index-grouped",
+      "selectorChannelFormatFlattened": {
+        "selectChannelNames": "#y-playList .module-tab-item:first-child span",
+        "matchChannelName": "",
+        "selectEpisodeLists": ".module-play-list-content",
+        "selectEpisodesFromList": "a",
+        "selectEpisodeLinksFromList": "",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
+      },
+      "selectorChannelFormatNoChannel": {
+        "selectEpisodes": ".module-play-list-content a.module-play-list-link",
+        "selectEpisodeLinks": "",
+        "matchEpisodeSortFromName": "第\\s*(?<ep>.+)\\s*[话集]"
+      },
+      "filterByEpisodeSort": true,
+      "selectMedia": {
+        "distinguishSubjectName": true,
+        "distinguishChannelName": true
+      },
+      "matchVideo": {
+        "enableNestedUrl": true,
+        "matchNestedUrl": "^https?://[^/]+/addons/dp/player/[^?]*\\.php\\?",
+        "matchVideoUrl": "(?<v>^https?://[^\\s]+\\.(mp4|m3u8)(\\?.*)?$)",
+        "addHeadersToVideo": {
+          "referer": ""
+        }
+      },
+      "defaultResolution": "1080P",
+      "defaultSubtitleLanguage": "CHS"
+    },
+    "tier": 4,
+    "channelTiers": {
+      "网页专线": 0
+    }
+  }
+}
