@@ -1,6 +1,6 @@
 # 稀饭动漫 Next
 
-配置文件：`subs/api/t4/稀饭动漫 Next.json`。生成订阅：`v1/api1.json`。
+配置文件：`subs/api/t0/稀饭动漫 Next.json`。生成订阅：`v1/api1.json`。
 
 ## 客户端要求
 
@@ -37,7 +37,7 @@
 - 播放时请求新的视频地址；请求不传 `source`，从返回的 `candidates` 中按 `source_name` 匹配当前线路。
 - 未找到当前线路时不回退到其他线路，避免播放与用户选择的线路不一致。
 - `p_id`、`episode_id`、分页参数使用未加引号的数字占位符；例如 `"episode_id": {id}`，避免接口将数字当作字符串拒绝请求。
-- `arguments.tier` 为 `4`，用于尚未评测的新线路；五种已观测线路通过 `channelTiers` 按实测等级覆盖。结果与边界见[补充评测](稀饭动漫-Next-评测.md)。
+- `arguments.tier` 为 `0`，延续稀饭源的静态优先级，未覆盖的线路回退到 T0；五种已观测线路通过 `channelTiers` 按实测等级覆盖。结果与边界见[补充评测](稀饭动漫-Next-评测.md)。
 
 ## 验证记录
 

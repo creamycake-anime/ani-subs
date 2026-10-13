@@ -37,7 +37,7 @@ Web 数据源放在 `subs/web/t0/` 到 `subs/web/t4/`：
 BT 数据源放在 `subs/bt/`，例如 `subs/bt/AnimeGarden.json`。
 
 JSON API 数据源放在 `subs/api/t0/` 到 `subs/api/t4/`，目录与 `arguments.tier` 一致，
-例如 `subs/api/t4/稀饭动漫 Next.json`。
+例如 `subs/api/t0/稀饭动漫 Next.json`。
 
 新增数据源时，使用数据源名称作为文件名。如果名称重复，文件名使用 `2`、`3` 后缀区分，例如 `XX数据源.json` 和 `XX数据源2.json`。
 调整 Web 数据源的 tier 时，同时修改 JSON 里的 `arguments.tier` 并把文件移动到对应的 `tN` 目录。
