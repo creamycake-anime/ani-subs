@@ -14,8 +14,10 @@
 ### JSON API 数据源订阅
 
 `v1/api1.json` 提供 JSON API 数据源，包含稀饭动漫 Next。该订阅需要支持
-`json-api` v1 的 Animeko 客户端，依赖 [open-ani/animeko#3551](https://github.com/open-ani/animeko/pull/3551)。
-旧版客户端不支持此数据源类型。正式兼容版本和上线时间以维护者发布为准。
+`json-api` v1 的 Animeko 客户端，配置格式对应
+[open-ani/animeko#3599](https://github.com/open-ani/animeko/pull/3599)。
+官方 6.3.0 尚不包含此功能；已验证基于 6.3.0 并包含该 PR 的定制 Windows 客户端。
+正式兼容版本和上线时间以维护者发布为准。
 
 该订阅单独生成，与现有 CSS Selector 和 BT 订阅分开。部署后可添加：
 `https://sub.creamycake.org/v1/api1.json`。
