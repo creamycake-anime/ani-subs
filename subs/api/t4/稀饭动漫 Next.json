@@ -5,10 +5,13 @@
     "name": "稀饭动漫 Next",
     "description": "",
     "iconUrl": "https://next.xifanacg.com/favicon.ico",
-    "tier": 0,
+    "tier": 4,
     "channelTiers": {
-      "稀饭新番主线-2": 0,
-      "稀饭旧番主线-1": 1
+      "稀饭旧番主线-1": 0,
+      "稀饭备用-1": 3,
+      "稀饭新番主线-1": 3,
+      "稀饭新番主线-2": 3,
+      "稀饭 Next 主线（Beta）": 6
     },
     "searchConfig": {
       "baseUrl": "https://api.xifanacg.com",
