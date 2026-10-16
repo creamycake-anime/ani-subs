@@ -58,9 +58,9 @@
       "defaultResolution": "1080P",
       "defaultSubtitleLanguage": "CHS"
     },
-    "tier": 0,
+    "tier": 1,
     "channelTiers": {
-      "网页专线": 0
+      "网页专线": 1
     }
   }
 }
