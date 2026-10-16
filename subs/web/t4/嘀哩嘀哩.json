@@ -4,7 +4,7 @@
   "version": 2,
   "arguments": {
     "name": "嘀哩嘀哩",
-    "description": "直连，来自嘀哩嘀哩，导航：https://dilidili.io/",
+    "description": "",
     "iconUrl": "https://bkimg.cdn.bcebos.com/pic/c2fdfc039245d688d43f36eaa0986a1ed21b0ef48e71?x-bce-process=image/format,f_auto/quality,Q_70/resize,m_lfit,limit_1,w_536",
     "searchConfig": {
       "searchUrl": "https://dilidili.io/search?q={keyword}",

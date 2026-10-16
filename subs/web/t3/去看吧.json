@@ -4,7 +4,7 @@
   "version": 2,
   "arguments": {
     "name": "去看吧",
-    "description": "直连，来自去看吧，导航：https://11kt.net/",
+    "description": "",
     "iconUrl": "https://11kt.net/klogo.png",
     "searchConfig": {
       "searchUrl": "https://11kt.net/index.php/vod/search.html?wd={keyword}",

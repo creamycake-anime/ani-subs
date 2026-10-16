@@ -5,7 +5,7 @@
   "version": 2,
   "arguments": {
     "name": "2k动漫",
-    "description": "直连，来自 MuteFun / 2k动漫，导航：https://www.2kdm.com/",
+    "description": "",
     "iconUrl": "https://www.2kdm.com/favicon.ico",
     "searchConfig": {
       "searchUrl": "https://www.2kdm.com/index.php/ajax/suggest?mid=1&wd={keyword}",

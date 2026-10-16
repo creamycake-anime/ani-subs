@@ -4,7 +4,7 @@
   "version": 2,
   "arguments": {
     "name": "嘀嗒影视",
-    "description": "直连，来自嘀嗒影视，导航：https://www.didahd.pro/",
+    "description": "",
     "iconUrl": "https://www.didahd.pro/template/mytheme/statics/img/favicon.ico",
     "searchConfig": {
       "searchUrl": "https://www.didahd.pro/search/-------------.html?wd={keyword}&submit=",

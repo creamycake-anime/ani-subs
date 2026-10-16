@@ -4,7 +4,7 @@
   "version": 2,
   "arguments": {
     "name": "E-ACG",
-    "description": "直连，来自E-ACG，导航：https://www.eacg1.com/",
+    "description": "",
     "iconUrl": "https://i.loli.net/2019/12/09/17hvXK2LemTtgfs.png",
     "searchConfig": {
       "searchUrl": "https://www.eacg1.com/vodsearch/-------------.html?wd={keyword}",

@@ -4,7 +4,7 @@
   "version": 2,
   "arguments": {
     "name": "新优酷",
-    "description": "直连，来自新优酷，导航：https://www.youknow.tv/",
+    "description": "",
     "iconUrl": "https://www.youknow.tv/upload/mxprocms/20240119-1/55e70266f81055026bb40dee6a603812.png",
     "searchConfig": {
       "searchUrl": "https://www.youknow.tv/search/-------------/?wd={keyword}",

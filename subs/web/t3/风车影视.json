@@ -4,7 +4,7 @@
   "version": 2,
   "arguments": {
     "name": "风车影视",
-    "description": "直连，来自风车影视，导航：https://www.dongmandaquan.vip/",
+    "description": "",
     "iconUrl": "https://www.dongmandaquan.vip/template/a_0011/images/favicon.ico?v=20221112",
     "searchConfig": {
       "searchUrl": "https://www.dongmandaquan.vip/vodsearch/-------------.html?wd={keyword}",

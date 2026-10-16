@@ -4,7 +4,7 @@
   "version": 2,
   "arguments": {
     "name": "叽哔动漫",
-    "description": "直连，来自叽哔动漫，导航：https://www.jibi.cc/",
+    "description": "",
     "iconUrl": "https://www.jibi.cc/upload/mxprocms/20240530-1/811f55cb787194c59e3f6d1d8724571c.jpg",
     "searchConfig": {
       "searchUrl": "https://www.jibi.cc/index.php/vod/search.html?wd={keyword}",

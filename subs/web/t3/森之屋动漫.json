@@ -4,7 +4,7 @@
   "version": 2,
   "arguments": {
     "name": "森之屋动漫",
-    "description": "直连，来自森之屋动漫，导航：https://senfun.in/",
+    "description": "",
     "iconUrl": "https://senfun.in/static/senfun/mxtheme/images/favicon.png",
     "searchConfig": {
       "searchUrl": "https://senfun.in/search.html?wd={keyword}",
