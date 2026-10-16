@@ -108,6 +108,20 @@ function assertMediaSource(source, file) {
   if (typeof source.arguments.name !== "string" || source.arguments.name.length === 0) {
     throw new Error(`${file}: expected "arguments.name" to be a non-empty string`);
   }
+  if (typeof source.id !== "string" || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(source.id)) {
+    throw new Error(`${file}: expected "id" to be lowercase letters and digits separated by "-"`);
+  }
+}
+
+// Animeko 按 id 对应用户本地的数据源. id 重复时只能按顺序对应, 调整顺序后用户的设置会跑到别的数据源上
+const fileById = new Map();
+
+function assertUniqueId(source, file) {
+  const other = fileById.get(source.id);
+  if (other) {
+    throw new Error(`${file}: id "${source.id}" is already used by ${other}`);
+  }
+  fileById.set(source.id, file);
 }
 
 function sourceTier(source, file) {
@@ -157,6 +171,7 @@ function buildTarget(target) {
   const entries = listJsonFiles(target.inputDir, target.recursive).map((file) => {
     const source = readJson(file);
     assertMediaSource(source, file);
+    assertUniqueId(source, file);
     const entry = {
       file,
       fileName: path.basename(file),
