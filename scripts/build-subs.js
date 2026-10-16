@@ -26,7 +26,7 @@ const outputDir = path.resolve(rootDir, readArgValue("--out-dir", "v1"));
 const targets = [
   {
     name: "css1",
-    inputDir: path.join(rootDir, "subs", "web"),
+    inputDirs: [path.join(rootDir, "subs", "web"), path.join(rootDir, "subs", "api")],
     outputFile: path.join(outputDir, "css1.json"),
     recursive: true,
     sortByTier: true,
@@ -54,6 +54,7 @@ const targets = [
       "hanime1[720p].json",
       "girigiri愛動漫.json",
       "girigiri愛動漫2.json",
+      "稀饭动漫 Next.json",
       "风车动漫.json",
       "趣动漫.json",
       "稀饭动漫2.json",
@@ -74,7 +75,7 @@ const targets = [
   },
   {
     name: "bt1",
-    inputDir: path.join(rootDir, "subs", "bt"),
+    inputDirs: [path.join(rootDir, "subs", "bt")],
     outputFile: path.join(outputDir, "bt1.json"),
     recursive: false,
     sortByTier: false,
@@ -165,7 +166,7 @@ function assertTierDirectory(entry, target) {
   const expectedDir = `t${entry.tier}`;
   const actualDir = entry.relativePath.split(path.sep)[0];
   if (actualDir !== expectedDir) {
-    throw new Error(`${entry.file}: expected to be under ${path.join(target.inputDir, expectedDir)}`);
+    throw new Error(`${entry.file}: expected to be under ${path.join(entry.inputDir, expectedDir)}`);
   }
 }
 
@@ -191,13 +192,17 @@ function listJsonFiles(dir, recursive) {
 
 function buildTarget(target) {
   const order = new Map(target.order.map((fileName, index) => [fileName, index]));
-  const entries = listJsonFiles(target.inputDir, target.recursive).map((file) => {
+  const files = target.inputDirs.flatMap((inputDir) =>
+    listJsonFiles(inputDir, target.recursive).map((file) => ({ inputDir, file })),
+  );
+  const entries = files.map(({ inputDir, file }) => {
     const source = readJson(file);
     assertMediaSource(source, file);
     const entry = {
       file,
+      inputDir,
       fileName: path.basename(file),
-      relativePath: path.relative(target.inputDir, file),
+      relativePath: path.relative(inputDir, file),
       source,
       tier: target.sortByTier ? sourceTier(source, file) : 0,
     };
