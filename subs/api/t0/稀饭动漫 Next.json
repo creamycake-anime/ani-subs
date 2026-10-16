@@ -1,0 +1,73 @@
+{
+  "id": "xifan-dongman-next",
+  "clientVersions": ">=6.3.0",
+  "factoryId": "json-api",
+  "version": 1,
+  "arguments": {
+    "name": "稀饭动漫 Next",
+    "description": "",
+    "iconUrl": "https://next.xifanacg.com/favicon.ico",
+    "tier": 0,
+    "searchConfig": {
+      "baseUrl": "https://api.xifanacg.com",
+      "headers": "apikey: sb_publishable_OBIVAWACIX6lPXrO98_z24_HcsmalkA\nAuthorization: Bearer sb_publishable_OBIVAWACIX6lPXrO98_z24_HcsmalkA\nOrigin: https://next.xifanacg.com",
+      "requestInterval": 1000,
+      "searchCacheTtl": 7200000,
+      "defaultResolution": "1080P",
+      "defaultSubtitleLanguage": "CHS",
+      "autoMatch": {
+        "enabled": true,
+        "searchUseSubjectNamesCount": 3
+      },
+      "search": {
+        "request": {
+          "url": "https://api.xifanacg.com/rest/v1/rpc/search_animes",
+          "method": "POST",
+          "body": "{\"search_term\":\"{keyword}\",\"page_number\":{page},\"items_per_page\":{pageSize},\"sort_by\":\"bangumi_score\",\"sort_order\":\"desc\",\"filter_only_published\":true}",
+          "headers": ""
+        },
+        "pageSize": 50,
+        "selectItems": "$[*]",
+        "selectName": "$.title",
+        "selectId": "$.id",
+        "subjectUrlTemplate": "https://next.xifanacg.com/anime/{id}"
+      },
+      "subject": {
+        "request": {
+          "url": "https://api.xifanacg.com/rest/v1/rpc/get_anime_detail",
+          "method": "POST",
+          "body": "{\"p_id\":{id}}",
+          "headers": ""
+        },
+        "channelFormatId": "grouped",
+        "channelFormatGrouped": {
+          "selectChannels": "$.sources[*]",
+          "selectChannelName": "$.name"
+        },
+        "episodes": {
+          "selectEpisodes": "$.episodes[*]",
+          "selectName": "$.title",
+          "selectId": "$.id",
+          "selectSort": "$.episode_number",
+          "selectType": "$.kind",
+          "typeMapping": "main=MainStory\nsp=SP\nova=OVA\noad=OAD\nmovie=MainStory\nex=SP",
+          "nameTemplate": "{sort} {name}",
+          "episodeUrlTemplate": "https://next.xifanacg.com/anime/{subjectId}/play/{id}"
+        }
+      },
+      "play": {
+        "request": {
+          "url": "https://api.xifanacg.com/functions/v1/issue-web-playback",
+          "method": "POST",
+          "body": "{\"action\":\"fallback\",\"episode_id\":{id}}",
+          "headers": ""
+        },
+        "selectCandidates": "$.candidates[*]",
+        "selectCandidateChannel": "$.source_name",
+        "selectVideoUrl": "$.url",
+        "fallbackToFirstCandidate": false,
+        "referer": ""
+      }
+    }
+  }
+}
