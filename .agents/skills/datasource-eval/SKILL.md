@@ -6,6 +6,7 @@ description: 评测 ani-subs 的 CSS selector 数据源并生成图文报告。�
 # ani-subs 数据源评测
 
 对 `subs/web/t0…t4/` 下的 CSS selector 数据源做端到端评测并生成图文报告。报告落在 `reports/<评测日期>-css-eval/`。
+`"clientVersions": "<6.3.0"` 的配置只发给旧客户端，评测和线路 tier 同步都跳过它们。
 
 ## 依赖: animeko 仓库的 MCP
 

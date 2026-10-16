@@ -28,6 +28,9 @@ def collect_sources(root, only):
     for tier_dir in sorted(root.iterdir()):
         if tier_dir.is_dir():
             for f in sorted(tier_dir.glob("*.json")):
+                # 只发给 6.3.0 以前客户端的配置, 用当前引擎评测没有意义
+                if json.loads(f.read_text()).get("clientVersions") == "<6.3.0":
+                    continue
                 if not only or f.stem in only:
                     out.append((tier_dir.name, f))
     return out

@@ -53,6 +53,7 @@ const targets = [
       "hanime1[1080p].json",
       "hanime1[720p].json",
       "girigiri愛動漫.json",
+      "girigiri愛動漫2.json",
       "风车动漫.json",
       "趣动漫.json",
       "稀饭动漫2.json",
@@ -111,17 +112,39 @@ function assertMediaSource(source, file) {
   if (typeof source.id !== "string" || !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(source.id)) {
     throw new Error(`${file}: expected "id" to be lowercase letters and digits separated by "-"`);
   }
+  if ("clientVersions" in source && !(source.clientVersions in CLIENT_VERSIONS)) {
+    throw new Error(`${file}: expected "clientVersions" to be one of ${Object.keys(CLIENT_VERSIONS).join(", ")}`);
+  }
+}
+
+// Animeko 6.3.0 起读取订阅顶层的 mediaSources, 更早的版本只认识 exportedMediaSourceDataList.
+// 订阅里同时放两个列表, 依赖 6.3.0 新特性的数据源就不会发给旧客户端. 能区分的版本只有 6.3.0 这一个分界.
+const CLIENT_VERSIONS = {
+  ">=6.3.0": { current: true, legacy: false },
+  "<6.3.0": { current: false, legacy: true },
+};
+
+function includedIn(source, list) {
+  return source.clientVersions === undefined || CLIENT_VERSIONS[source.clientVersions][list];
 }
 
 // Animeko 按 id 对应用户本地的数据源. id 重复时只能按顺序对应, 调整顺序后用户的设置会跑到别的数据源上
-const fileById = new Map();
-
-function assertUniqueId(source, file) {
-  const other = fileById.get(source.id);
-  if (other) {
-    throw new Error(`${file}: id "${source.id}" is already used by ${other}`);
+function assertUniqueIds(entries) {
+  const fileById = new Map();
+  for (const { source, file } of entries) {
+    const other = fileById.get(source.id);
+    if (other) {
+      throw new Error(`${file}: id "${source.id}" is already used by ${other}`);
+    }
+    fileById.set(source.id, file);
   }
-  fileById.set(source.id, file);
+}
+
+function buildList(entries, list) {
+  const included = entries.filter(({ source }) => includedIn(source, list));
+  assertUniqueIds(included);
+  // clientVersions 只用于构建, 不发给客户端
+  return included.map(({ source: { clientVersions, ...source } }) => source);
 }
 
 function sourceTier(source, file) {
@@ -171,7 +194,6 @@ function buildTarget(target) {
   const entries = listJsonFiles(target.inputDir, target.recursive).map((file) => {
     const source = readJson(file);
     assertMediaSource(source, file);
-    assertUniqueId(source, file);
     const entry = {
       file,
       fileName: path.basename(file),
@@ -205,8 +227,10 @@ function buildTarget(target) {
   });
 
   return {
+    schemaVersion: 2,
+    mediaSources: buildList(entries, "current"),
     exportedMediaSourceDataList: {
-      mediaSources: entries.map(({ source }) => source),
+      mediaSources: buildList(entries, "legacy"),
     },
   };
 }

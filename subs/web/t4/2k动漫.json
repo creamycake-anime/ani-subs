@@ -1,5 +1,6 @@
 {
   "id": "2k-dongman",
+  "clientVersions": ">=6.3.0",
   "factoryId": "web-selector",
   "version": 2,
   "arguments": {

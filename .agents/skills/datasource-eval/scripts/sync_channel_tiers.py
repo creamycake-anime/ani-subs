@@ -147,6 +147,9 @@ def main() -> None:
 
     for path in sorted(sources_dir.rglob("*.json")):
         config = read_json(path)
+        # 只发给 6.3.0 以前客户端的配置不参与评测, 报告里没有它
+        if config.get("clientVersions") == "<6.3.0":
+            continue
         if config.get("factoryId") != "web-selector":
             errors.append(f"{path}: factoryId 不是 web-selector")
             continue
